@@ -1,0 +1,42 @@
+Namespace(backend='sglang-oai-chat', base_url='http://10.66.1.232:8081', dataset_name='random', dataset_path='/workspace/data/ShareGPT_V3_unfiltered_cleaned_split.json', model='/workspace/data/GLM-5.2-W8A8', tokenizer='/workspace/data/GLM-5.2-W8A8', num_prompts=20, max_concurrency=1, random_input=65536, random_output=8192, random_range_ratio=1.0, request_rate=0.5, pd_separated=True)
+
+100%|████████████████████████████████████████| 20/20 [02:34<00:00, 7.70s/it]
+
+============ Serving Benchmark Result ============
+Backend:                                 sglang-oai-chat
+Traffic request rate:                    0.50
+Max request concurrency:                 1
+Successful requests:                     20
+Benchmark duration (s):                  153.84
+Total input tokens:                      1312082
+Total generated tokens:                  163840
+Request throughput (req/s):              0.13
+Input token throughput (tok/s):          8528.87
+Output token throughput (tok/s):         1065.00
+Total token throughput (tok/s):          9593.88
+Concurrency:                             0.13
+----------------End-to-End Latency----------------
+Mean E2E Latency (ms):                   104439.15
+Median E2E Latency (ms):                 97833.15
+P90 E2E Latency (ms):                    135756.66
+P95 E2E Latency (ms):                    142186.87
+P99 E2E Latency (ms):                    144890.69
+---------------Time to First Token----------------
+Mean TTFT (ms):                          1850.00
+Median TTFT (ms):                        1737.41
+P90 TTFT (ms):                           2441.10
+P95 TTFT (ms):                           2557.65
+P99 TTFT (ms):                           2733.12
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          12.50
+Median TPOT (ms):                        11.79
+P90 TPOT (ms):                           16.35
+P95 TPOT (ms):                           17.07
+P99 TPOT (ms):                           17.41
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           12.60
+Median ITL (ms):                         11.72
+P90 ITL (ms):                            15.13
+P95 ITL (ms):                            19.50
+P99 ITL (ms):                            19.93
+==================================================

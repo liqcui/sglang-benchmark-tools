@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sglbench"
+version = "0.1.0"
+description = "SGLang PD 分离集群压测执行 / 归档 / 对比 / 可视化工具箱"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["sglang", "benchmark", "pd-disaggregation", "duckdb", "llm-inference"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: System :: Benchmark",
+    "Intended Audience :: Developers",
+]
+
+# 唯一的硬依赖：分析型存储。其余全部走标准库，保证离线集群可用。
+dependencies = ["duckdb>=1.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7", "pandas>=2.0"]
+
+[project.scripts]
+sglbench = "sglbench.cli:main"
+
+[project.urls]
+Documentation = "https://github.com/"
+
+[tool.setuptools]
+packages = ["sglbench"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

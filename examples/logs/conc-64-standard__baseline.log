@@ -1,0 +1,42 @@
+Namespace(backend='sglang-oai-chat', base_url='http://10.66.1.232:8081', dataset_name='random', dataset_path='/workspace/data/ShareGPT_V3_unfiltered_cleaned_split.json', model='/workspace/data/GLM-5.2-W8A8', tokenizer='/workspace/data/GLM-5.2-W8A8', num_prompts=200, max_concurrency=64, random_input=4096, random_output=2048, random_range_ratio=1.0, request_rate=6.0, pd_separated=True)
+
+100%|████████████████████████████████████████| 200/200 [00:59<00:00, 0.29s/it]
+
+============ Serving Benchmark Result ============
+Backend:                                 sglang-oai-chat
+Traffic request rate:                    6.00
+Max request concurrency:                 64
+Successful requests:                     200
+Benchmark duration (s):                  59.04
+Total input tokens:                      819200
+Total generated tokens:                  409600
+Request throughput (req/s):              3.39
+Input token throughput (tok/s):          13875.34
+Output token throughput (tok/s):         6937.67
+Total token throughput (tok/s):          20813.01
+Concurrency:                             3.39
+----------------End-to-End Latency----------------
+Mean E2E Latency (ms):                   31492.46
+Median E2E Latency (ms):                 30560.89
+P90 E2E Latency (ms):                    41103.39
+P95 E2E Latency (ms):                    46520.09
+P99 E2E Latency (ms):                    50536.24
+---------------Time to First Token----------------
+Mean TTFT (ms):                          1180.00
+Median TTFT (ms):                        1148.98
+P90 TTFT (ms):                           1552.56
+P95 TTFT (ms):                           1676.05
+P99 TTFT (ms):                           2004.07
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          14.80
+Median TPOT (ms):                        14.41
+P90 TPOT (ms):                           19.57
+P95 TPOT (ms):                           22.26
+P99 TPOT (ms):                           24.08
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           14.90
+Median ITL (ms):                         14.62
+P90 ITL (ms):                            19.56
+P95 ITL (ms):                            21.19
+P99 ITL (ms):                            24.27
+==================================================

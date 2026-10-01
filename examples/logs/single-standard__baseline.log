@@ -1,0 +1,42 @@
+Namespace(backend='sglang-oai-chat', base_url='http://10.66.1.232:8081', dataset_name='random', dataset_path='/workspace/data/ShareGPT_V3_unfiltered_cleaned_split.json', model='/workspace/data/GLM-5.2-W8A8', tokenizer='/workspace/data/GLM-5.2-W8A8', num_prompts=50, max_concurrency=1, random_input=4096, random_output=2048, random_range_ratio=1.0, request_rate=1.0, pd_separated=True)
+
+100%|████████████████████████████████████████| 50/50 [00:20<00:00, 0.40s/it]
+
+============ Serving Benchmark Result ============
+Backend:                                 sglang-oai-chat
+Traffic request rate:                    1.00
+Max request concurrency:                 1
+Successful requests:                     50
+Benchmark duration (s):                  19.87
+Total input tokens:                      204800
+Total generated tokens:                  102400
+Request throughput (req/s):              2.52
+Input token throughput (tok/s):          10307.00
+Output token throughput (tok/s):         5153.50
+Total token throughput (tok/s):          15460.49
+Concurrency:                             2.52
+----------------End-to-End Latency----------------
+Mean E2E Latency (ms):                   15856.36
+Median E2E Latency (ms):                 15757.46
+P90 E2E Latency (ms):                    17339.68
+P95 E2E Latency (ms):                    17645.63
+P99 E2E Latency (ms):                    17864.13
+---------------Time to First Token----------------
+Mean TTFT (ms):                          84.00
+Median TTFT (ms):                        80.37
+P90 TTFT (ms):                           99.82
+P95 TTFT (ms):                           104.85
+P99 TTFT (ms):                           112.92
+-----Time per Output Token (excl. 1st token)------
+Mean TPOT (ms):                          7.70
+Median TPOT (ms):                        7.67
+P90 TPOT (ms):                           8.35
+P95 TPOT (ms):                           8.59
+P99 TPOT (ms):                           8.67
+---------------Inter-token Latency----------------
+Mean ITL (ms):                           7.75
+Median ITL (ms):                         7.72
+P90 ITL (ms):                            8.63
+P95 ITL (ms):                            9.00
+P99 ITL (ms):                            9.25
+==================================================

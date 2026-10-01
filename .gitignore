@@ -1,0 +1,21 @@
+# 数据与产物
+data/
+*.duckdb
+*.duckdb.wal
+runs/
+exports/
+reports/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# 编辑器
+.vscode/
+.idea/
+.DS_Store

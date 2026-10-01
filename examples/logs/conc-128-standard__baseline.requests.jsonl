@@ -1,0 +1,300 @@
+{"request_id": "0", "input_len": 4096, "output_len": 304, "ttft_ms": 5828.13, "tpot_ms": null, "itl_ms": null, "e2e_ms": 30012.45, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "1", "input_len": 4096, "output_len": 2048, "ttft_ms": 1964.91, "tpot_ms": 24.45, "itl_ms": 34.52, "e2e_ms": 52343.54, "status": "ok", "error": null}
+{"request_id": "2", "input_len": 4096, "output_len": 2048, "ttft_ms": 2441.2, "tpot_ms": 27.08, "itl_ms": 17.64, "e2e_ms": 57814.49, "status": "ok", "error": null}
+{"request_id": "3", "input_len": 4096, "output_len": 2048, "ttft_ms": 2736.1, "tpot_ms": 19.49, "itl_ms": 22.2, "e2e_ms": 42583.58, "status": "ok", "error": null}
+{"request_id": "4", "input_len": 4096, "output_len": 2048, "ttft_ms": 2932.75, "tpot_ms": 24.07, "itl_ms": 24.31, "e2e_ms": 52277.72, "status": "ok", "error": null}
+{"request_id": "5", "input_len": 4096, "output_len": 481, "ttft_ms": 4230.78, "tpot_ms": null, "itl_ms": null, "e2e_ms": 32267.54, "status": "error", "error": "HTTP 503: no healthy prefill worker available (0/4 ready)"}
+{"request_id": "6", "input_len": 4096, "output_len": 192, "ttft_ms": 5804.59, "tpot_ms": null, "itl_ms": null, "e2e_ms": 22286.46, "status": "error", "error": "HTTP 500: prefill worker restarted"}
+{"request_id": "7", "input_len": 4096, "output_len": 2048, "ttft_ms": 2573.64, "tpot_ms": 21.48, "itl_ms": 24.03, "e2e_ms": 46094.21, "status": "ok", "error": null}
+{"request_id": "8", "input_len": 4096, "output_len": 2048, "ttft_ms": 2098.46, "tpot_ms": 23.15, "itl_ms": 18.43, "e2e_ms": 49497.62, "status": "ok", "error": null}
+{"request_id": "9", "input_len": 4096, "output_len": 2048, "ttft_ms": 3168.77, "tpot_ms": 22.68, "itl_ms": 17.45, "e2e_ms": 49832.82, "status": "ok", "error": null}
+{"request_id": "10", "input_len": 4096, "output_len": 2048, "ttft_ms": 2774.32, "tpot_ms": 15.63, "itl_ms": 23.44, "e2e_ms": 34783.79, "status": "ok", "error": null}
+{"request_id": "11", "input_len": 4096, "output_len": 2048, "ttft_ms": 2359.9, "tpot_ms": 27.64, "itl_ms": 13.57, "e2e_ms": 58678.21, "status": "ok", "error": null}
+{"request_id": "12", "input_len": 4096, "output_len": 701, "ttft_ms": 6574.9, "tpot_ms": null, "itl_ms": null, "e2e_ms": 28912.86, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.14 GiB (GPU 0; 63.99 GiB total capacity)"}
+{"request_id": "13", "input_len": 4096, "output_len": 2048, "ttft_ms": 4351.34, "tpot_ms": 18.37, "itl_ms": 22.29, "e2e_ms": 41896.37, "status": "ok", "error": null}
+{"request_id": "14", "input_len": 4096, "output_len": 2048, "ttft_ms": 1607.56, "tpot_ms": 29.95, "itl_ms": 32.49, "e2e_ms": 62730.31, "status": "ok", "error": null}
+{"request_id": "15", "input_len": 4096, "output_len": 2048, "ttft_ms": 3342.85, "tpot_ms": 23.0, "itl_ms": 28.73, "e2e_ms": 49924.78, "status": "ok", "error": null}
+{"request_id": "16", "input_len": 4096, "output_len": 2048, "ttft_ms": 2053.75, "tpot_ms": 23.08, "itl_ms": 23.19, "e2e_ms": 49680.12, "status": "ok", "error": null}
+{"request_id": "17", "input_len": 4096, "output_len": 2048, "ttft_ms": 2250.65, "tpot_ms": 19.42, "itl_ms": 17.79, "e2e_ms": 41963.72, "status": "ok", "error": null}
+{"request_id": "18", "input_len": 4096, "output_len": 2048, "ttft_ms": 2466.18, "tpot_ms": 15.27, "itl_ms": 18.34, "e2e_ms": 33477.21, "status": "ok", "error": null}
+{"request_id": "19", "input_len": 4096, "output_len": 2048, "ttft_ms": 2870.62, "tpot_ms": 18.98, "itl_ms": 29.76, "e2e_ms": 41614.35, "status": "ok", "error": null}
+{"request_id": "20", "input_len": 4096, "output_len": 2048, "ttft_ms": 1953.86, "tpot_ms": 19.98, "itl_ms": 21.04, "e2e_ms": 43389.4, "status": "ok", "error": null}
+{"request_id": "21", "input_len": 4096, "output_len": 2048, "ttft_ms": 1863.49, "tpot_ms": 26.53, "itl_ms": 25.35, "e2e_ms": 56690.15, "status": "ok", "error": null}
+{"request_id": "22", "input_len": 4096, "output_len": 2048, "ttft_ms": 2891.51, "tpot_ms": 16.25, "itl_ms": 23.02, "e2e_ms": 36157.34, "status": "ok", "error": null}
+{"request_id": "23", "input_len": 4096, "output_len": 0, "ttft_ms": 5401.3, "tpot_ms": null, "itl_ms": null, "e2e_ms": 19091.55, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.14 GiB (GPU 0; 63.99 GiB total capacity)"}
+{"request_id": "24", "input_len": 4096, "output_len": 151, "ttft_ms": 6449.28, "tpot_ms": null, "itl_ms": null, "e2e_ms": 28998.53, "status": "error", "error": "HTTP 503: no healthy prefill worker available (0/4 ready)"}
+{"request_id": "25", "input_len": 4096, "output_len": 2048, "ttft_ms": 3152.89, "tpot_ms": 27.64, "itl_ms": 29.08, "e2e_ms": 59899.87, "status": "ok", "error": null}
+{"request_id": "26", "input_len": 4096, "output_len": 2048, "ttft_ms": 2940.46, "tpot_ms": 24.72, "itl_ms": 25.22, "e2e_ms": 53077.9, "status": "ok", "error": null}
+{"request_id": "27", "input_len": 4096, "output_len": 2048, "ttft_ms": 2381.49, "tpot_ms": 21.29, "itl_ms": 23.88, "e2e_ms": 46006.3, "status": "ok", "error": null}
+{"request_id": "28", "input_len": 4096, "output_len": 2048, "ttft_ms": 2506.88, "tpot_ms": 21.35, "itl_ms": 19.62, "e2e_ms": 46185.66, "status": "ok", "error": null}
+{"request_id": "29", "input_len": 4096, "output_len": 2048, "ttft_ms": 2270.05, "tpot_ms": 29.14, "itl_ms": 19.8, "e2e_ms": 61878.23, "status": "ok", "error": null}
+{"request_id": "30", "input_len": 4096, "output_len": 2048, "ttft_ms": 2288.02, "tpot_ms": 20.68, "itl_ms": 29.76, "e2e_ms": 44685.6, "status": "ok", "error": null}
+{"request_id": "31", "input_len": 4096, "output_len": 262, "ttft_ms": 5680.64, "tpot_ms": null, "itl_ms": null, "e2e_ms": 26946.71, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "32", "input_len": 4096, "output_len": 2048, "ttft_ms": 2260.55, "tpot_ms": 24.43, "itl_ms": 26.35, "e2e_ms": 52257.05, "status": "ok", "error": null}
+{"request_id": "33", "input_len": 4096, "output_len": 2048, "ttft_ms": 1972.94, "tpot_ms": 27.26, "itl_ms": 25.86, "e2e_ms": 57540.18, "status": "ok", "error": null}
+{"request_id": "34", "input_len": 4096, "output_len": 627, "ttft_ms": 4775.02, "tpot_ms": null, "itl_ms": null, "e2e_ms": 21654.6, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "35", "input_len": 4096, "output_len": 2048, "ttft_ms": 2219.37, "tpot_ms": 25.45, "itl_ms": 18.92, "e2e_ms": 54310.43, "status": "ok", "error": null}
+{"request_id": "36", "input_len": 4096, "output_len": 2048, "ttft_ms": 2547.16, "tpot_ms": 30.46, "itl_ms": 28.36, "e2e_ms": 64564.03, "status": "ok", "error": null}
+{"request_id": "37", "input_len": 4096, "output_len": 554, "ttft_ms": 4830.23, "tpot_ms": null, "itl_ms": null, "e2e_ms": 28522.91, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.14 GiB (GPU 0; 63.99 GiB total capacity)"}
+{"request_id": "38", "input_len": 4096, "output_len": 2048, "ttft_ms": 2353.96, "tpot_ms": 21.65, "itl_ms": 15.88, "e2e_ms": 46900.86, "status": "ok", "error": null}
+{"request_id": "39", "input_len": 4096, "output_len": 2048, "ttft_ms": 2794.16, "tpot_ms": 10.71, "itl_ms": 16.18, "e2e_ms": 24700.3, "status": "ok", "error": null}
+{"request_id": "40", "input_len": 4096, "output_len": 2048, "ttft_ms": 2953.54, "tpot_ms": 18.79, "itl_ms": 17.76, "e2e_ms": 41436.43, "status": "ok", "error": null}
+{"request_id": "41", "input_len": 4096, "output_len": 2048, "ttft_ms": 3983.21, "tpot_ms": 14.89, "itl_ms": 18.42, "e2e_ms": 34840.98, "status": "ok", "error": null}
+{"request_id": "42", "input_len": 4096, "output_len": 2048, "ttft_ms": 2889.65, "tpot_ms": 26.16, "itl_ms": 25.13, "e2e_ms": 56587.54, "status": "ok", "error": null}
+{"request_id": "43", "input_len": 4096, "output_len": 2048, "ttft_ms": 3464.59, "tpot_ms": 22.74, "itl_ms": 22.56, "e2e_ms": 49815.99, "status": "ok", "error": null}
+{"request_id": "44", "input_len": 4096, "output_len": 2048, "ttft_ms": 2663.13, "tpot_ms": 16.39, "itl_ms": 19.43, "e2e_ms": 36420.57, "status": "ok", "error": null}
+{"request_id": "45", "input_len": 4096, "output_len": 2048, "ttft_ms": 4159.26, "tpot_ms": 19.21, "itl_ms": 26.0, "e2e_ms": 43797.08, "status": "ok", "error": null}
+{"request_id": "46", "input_len": 4096, "output_len": 2048, "ttft_ms": 2074.16, "tpot_ms": 16.42, "itl_ms": 21.82, "e2e_ms": 35872.64, "status": "ok", "error": null}
+{"request_id": "47", "input_len": 4096, "output_len": 2048, "ttft_ms": 2272.06, "tpot_ms": 20.59, "itl_ms": 19.08, "e2e_ms": 44854.42, "status": "ok", "error": null}
+{"request_id": "48", "input_len": 4096, "output_len": 2048, "ttft_ms": 2038.97, "tpot_ms": 18.76, "itl_ms": 30.71, "e2e_ms": 39869.2, "status": "ok", "error": null}
+{"request_id": "49", "input_len": 4096, "output_len": 2048, "ttft_ms": 1785.24, "tpot_ms": 20.78, "itl_ms": 22.87, "e2e_ms": 44264.69, "status": "ok", "error": null}
+{"request_id": "50", "input_len": 4096, "output_len": 471, "ttft_ms": 6676.09, "tpot_ms": null, "itl_ms": null, "e2e_ms": 19665.67, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "51", "input_len": 4096, "output_len": 2048, "ttft_ms": 2025.61, "tpot_ms": 17.09, "itl_ms": 21.7, "e2e_ms": 36908.25, "status": "ok", "error": null}
+{"request_id": "52", "input_len": 4096, "output_len": 2048, "ttft_ms": 2538.3, "tpot_ms": 16.27, "itl_ms": 15.74, "e2e_ms": 35716.16, "status": "ok", "error": null}
+{"request_id": "53", "input_len": 4096, "output_len": 2048, "ttft_ms": 2357.16, "tpot_ms": 19.83, "itl_ms": 23.15, "e2e_ms": 43155.92, "status": "ok", "error": null}
+{"request_id": "54", "input_len": 4096, "output_len": 2048, "ttft_ms": 2140.42, "tpot_ms": 24.72, "itl_ms": 21.41, "e2e_ms": 53548.67, "status": "ok", "error": null}
+{"request_id": "55", "input_len": 4096, "output_len": 2048, "ttft_ms": 1736.8, "tpot_ms": 19.13, "itl_ms": 16.66, "e2e_ms": 40549.26, "status": "ok", "error": null}
+{"request_id": "56", "input_len": 4096, "output_len": 2048, "ttft_ms": 3087.72, "tpot_ms": 22.78, "itl_ms": 15.15, "e2e_ms": 50078.57, "status": "ok", "error": null}
+{"request_id": "57", "input_len": 4096, "output_len": 2048, "ttft_ms": 2610.96, "tpot_ms": 27.07, "itl_ms": 28.02, "e2e_ms": 58090.38, "status": "ok", "error": null}
+{"request_id": "58", "input_len": 4096, "output_len": 2048, "ttft_ms": 1846.77, "tpot_ms": 27.56, "itl_ms": 19.49, "e2e_ms": 58552.01, "status": "ok", "error": null}
+{"request_id": "59", "input_len": 4096, "output_len": 2048, "ttft_ms": 2614.62, "tpot_ms": 22.35, "itl_ms": 27.64, "e2e_ms": 47883.4, "status": "ok", "error": null}
+{"request_id": "60", "input_len": 4096, "output_len": 2048, "ttft_ms": 2245.41, "tpot_ms": 33.9, "itl_ms": 26.22, "e2e_ms": 70729.73, "status": "ok", "error": null}
+{"request_id": "61", "input_len": 4096, "output_len": 2048, "ttft_ms": 3665.4, "tpot_ms": 16.63, "itl_ms": 13.98, "e2e_ms": 37698.85, "status": "ok", "error": null}
+{"request_id": "62", "input_len": 4096, "output_len": 2048, "ttft_ms": 1779.9, "tpot_ms": 26.21, "itl_ms": 15.6, "e2e_ms": 55047.56, "status": "ok", "error": null}
+{"request_id": "63", "input_len": 4096, "output_len": 30, "ttft_ms": 6833.0, "tpot_ms": null, "itl_ms": null, "e2e_ms": 30237.4, "status": "error", "error": "HTTP 503: no healthy prefill worker available (0/4 ready)"}
+{"request_id": "64", "input_len": 4096, "output_len": 2048, "ttft_ms": 2529.53, "tpot_ms": 23.57, "itl_ms": 17.3, "e2e_ms": 50752.82, "status": "ok", "error": null}
+{"request_id": "65", "input_len": 4096, "output_len": 370, "ttft_ms": 6436.26, "tpot_ms": null, "itl_ms": null, "e2e_ms": 42362.55, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.14 GiB (GPU 0; 63.99 GiB total capacity)"}
+{"request_id": "66", "input_len": 4096, "output_len": 2048, "ttft_ms": 1974.62, "tpot_ms": 20.3, "itl_ms": 14.76, "e2e_ms": 43697.1, "status": "ok", "error": null}
+{"request_id": "67", "input_len": 4096, "output_len": 2048, "ttft_ms": 3088.51, "tpot_ms": 17.43, "itl_ms": 17.86, "e2e_ms": 38546.81, "status": "ok", "error": null}
+{"request_id": "68", "input_len": 4096, "output_len": 592, "ttft_ms": 5505.8, "tpot_ms": null, "itl_ms": null, "e2e_ms": 44466.27, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.14 GiB (GPU 0; 63.99 GiB total capacity)"}
+{"request_id": "69", "input_len": 4096, "output_len": 2048, "ttft_ms": 2297.19, "tpot_ms": 22.33, "itl_ms": 22.41, "e2e_ms": 48143.37, "status": "ok", "error": null}
+{"request_id": "70", "input_len": 4096, "output_len": 1, "ttft_ms": 4228.59, "tpot_ms": null, "itl_ms": null, "e2e_ms": 26342.16, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.14 GiB (GPU 0; 63.99 GiB total capacity)"}
+{"request_id": "71", "input_len": 4096, "output_len": 292, "ttft_ms": 4886.69, "tpot_ms": null, "itl_ms": null, "e2e_ms": 42818.16, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "72", "input_len": 4096, "output_len": 0, "ttft_ms": 7484.03, "tpot_ms": null, "itl_ms": null, "e2e_ms": 28769.37, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "73", "input_len": 4096, "output_len": 550, "ttft_ms": 5048.56, "tpot_ms": null, "itl_ms": null, "e2e_ms": 32025.19, "status": "error", "error": "HTTP 503: no healthy prefill worker available (0/4 ready)"}
+{"request_id": "74", "input_len": 4096, "output_len": 2048, "ttft_ms": 3382.39, "tpot_ms": 26.85, "itl_ms": 16.21, "e2e_ms": 58042.33, "status": "ok", "error": null}
+{"request_id": "75", "input_len": 4096, "output_len": 2048, "ttft_ms": 1550.8, "tpot_ms": 17.78, "itl_ms": 29.44, "e2e_ms": 38115.23, "status": "ok", "error": null}
+{"request_id": "76", "input_len": 4096, "output_len": 2048, "ttft_ms": 1689.49, "tpot_ms": 17.08, "itl_ms": 20.69, "e2e_ms": 36502.64, "status": "ok", "error": null}
+{"request_id": "77", "input_len": 4096, "output_len": 109, "ttft_ms": 6205.06, "tpot_ms": null, "itl_ms": null, "e2e_ms": 28390.32, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "78", "input_len": 4096, "output_len": 0, "ttft_ms": 6444.36, "tpot_ms": null, "itl_ms": null, "e2e_ms": 23727.67, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.14 GiB (GPU 0; 63.99 GiB total capacity)"}
+{"request_id": "79", "input_len": 4096, "output_len": 192, "ttft_ms": 3931.8, "tpot_ms": null, "itl_ms": null, "e2e_ms": 20255.82, "status": "error", "error": "HTTP 500: prefill worker restarted"}
+{"request_id": "80", "input_len": 4096, "output_len": 2048, "ttft_ms": 1438.44, "tpot_ms": 39.27, "itl_ms": 23.76, "e2e_ms": 80682.06, "status": "ok", "error": null}
+{"request_id": "81", "input_len": 4096, "output_len": 2048, "ttft_ms": 3083.08, "tpot_ms": 18.73, "itl_ms": 18.78, "e2e_ms": 41326.85, "status": "ok", "error": null}
+{"request_id": "82", "input_len": 4096, "output_len": 2048, "ttft_ms": 2323.71, "tpot_ms": 16.54, "itl_ms": 14.22, "e2e_ms": 36336.42, "status": "ok", "error": null}
+{"request_id": "83", "input_len": 4096, "output_len": 2048, "ttft_ms": 2508.83, "tpot_ms": 27.04, "itl_ms": 24.19, "e2e_ms": 58044.03, "status": "ok", "error": null}
+{"request_id": "84", "input_len": 4096, "output_len": 2048, "ttft_ms": 2373.05, "tpot_ms": 24.75, "itl_ms": 25.72, "e2e_ms": 53342.5, "status": "ok", "error": null}
+{"request_id": "85", "input_len": 4096, "output_len": 2048, "ttft_ms": 2563.0, "tpot_ms": 15.57, "itl_ms": 19.91, "e2e_ms": 34693.84, "status": "ok", "error": null}
+{"request_id": "86", "input_len": 4096, "output_len": 2048, "ttft_ms": 2141.86, "tpot_ms": 38.42, "itl_ms": 21.56, "e2e_ms": 79945.33, "status": "ok", "error": null}
+{"request_id": "87", "input_len": 4096, "output_len": 2048, "ttft_ms": 2200.67, "tpot_ms": 23.45, "itl_ms": 25.43, "e2e_ms": 50339.31, "status": "ok", "error": null}
+{"request_id": "88", "input_len": 4096, "output_len": 2048, "ttft_ms": 1844.61, "tpot_ms": 14.61, "itl_ms": 17.74, "e2e_ms": 31993.2, "status": "ok", "error": null}
+{"request_id": "89", "input_len": 4096, "output_len": 2048, "ttft_ms": 2092.57, "tpot_ms": 29.21, "itl_ms": 21.19, "e2e_ms": 62009.06, "status": "ok", "error": null}
+{"request_id": "90", "input_len": 4096, "output_len": 2048, "ttft_ms": 4494.67, "tpot_ms": 19.79, "itl_ms": 24.48, "e2e_ms": 44889.76, "status": "ok", "error": null}
+{"request_id": "91", "input_len": 4096, "output_len": 118, "ttft_ms": 5154.4, "tpot_ms": null, "itl_ms": null, "e2e_ms": 39262.38, "status": "error", "error": "HTTP 503: no healthy prefill worker available (0/4 ready)"}
+{"request_id": "92", "input_len": 4096, "output_len": 2048, "ttft_ms": 2705.51, "tpot_ms": 20.42, "itl_ms": 18.45, "e2e_ms": 44533.6, "status": "ok", "error": null}
+{"request_id": "93", "input_len": 4096, "output_len": 2048, "ttft_ms": 1726.61, "tpot_ms": 22.24, "itl_ms": 21.57, "e2e_ms": 47497.51, "status": "ok", "error": null}
+{"request_id": "94", "input_len": 4096, "output_len": 0, "ttft_ms": 4488.74, "tpot_ms": null, "itl_ms": null, "e2e_ms": 22537.77, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "95", "input_len": 4096, "output_len": 2048, "ttft_ms": 2822.53, "tpot_ms": 19.55, "itl_ms": 20.18, "e2e_ms": 43006.43, "status": "ok", "error": null}
+{"request_id": "96", "input_len": 4096, "output_len": 2048, "ttft_ms": 1754.63, "tpot_ms": 18.88, "itl_ms": 20.61, "e2e_ms": 40236.09, "status": "ok", "error": null}
+{"request_id": "97", "input_len": 4096, "output_len": 2048, "ttft_ms": 2191.61, "tpot_ms": 18.04, "itl_ms": 16.56, "e2e_ms": 39043.24, "status": "ok", "error": null}
+{"request_id": "98", "input_len": 4096, "output_len": 2048, "ttft_ms": 2893.41, "tpot_ms": 21.38, "itl_ms": 21.48, "e2e_ms": 47098.49, "status": "ok", "error": null}
+{"request_id": "99", "input_len": 4096, "output_len": 2048, "ttft_ms": 2759.22, "tpot_ms": 31.68, "itl_ms": 21.08, "e2e_ms": 67689.41, "status": "ok", "error": null}
+{"request_id": "100", "input_len": 4096, "output_len": 2048, "ttft_ms": 2269.81, "tpot_ms": 23.43, "itl_ms": 24.33, "e2e_ms": 50356.68, "status": "ok", "error": null}
+{"request_id": "101", "input_len": 4096, "output_len": 648, "ttft_ms": 6411.01, "tpot_ms": null, "itl_ms": null, "e2e_ms": 25695.52, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.14 GiB (GPU 0; 63.99 GiB total capacity)"}
+{"request_id": "102", "input_len": 4096, "output_len": 490, "ttft_ms": 4572.31, "tpot_ms": null, "itl_ms": null, "e2e_ms": 38870.96, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "103", "input_len": 4096, "output_len": 470, "ttft_ms": 4279.85, "tpot_ms": null, "itl_ms": null, "e2e_ms": 23608.01, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "104", "input_len": 4096, "output_len": 2048, "ttft_ms": 2980.95, "tpot_ms": 12.03, "itl_ms": 25.04, "e2e_ms": 27502.98, "status": "ok", "error": null}
+{"request_id": "105", "input_len": 4096, "output_len": 2048, "ttft_ms": 2344.35, "tpot_ms": 23.84, "itl_ms": 19.33, "e2e_ms": 50888.69, "status": "ok", "error": null}
+{"request_id": "106", "input_len": 4096, "output_len": 242, "ttft_ms": 3180.43, "tpot_ms": null, "itl_ms": null, "e2e_ms": 27672.33, "status": "error", "error": "HTTP 503: no healthy prefill worker available (0/4 ready)"}
+{"request_id": "107", "input_len": 4096, "output_len": 0, "ttft_ms": 5552.84, "tpot_ms": null, "itl_ms": null, "e2e_ms": 32366.12, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "108", "input_len": 4096, "output_len": 2048, "ttft_ms": 1859.87, "tpot_ms": 20.09, "itl_ms": 21.95, "e2e_ms": 43186.41, "status": "ok", "error": null}
+{"request_id": "109", "input_len": 4096, "output_len": 670, "ttft_ms": 3580.72, "tpot_ms": null, "itl_ms": null, "e2e_ms": 43306.04, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "110", "input_len": 4096, "output_len": 2048, "ttft_ms": 2092.63, "tpot_ms": 20.73, "itl_ms": 19.15, "e2e_ms": 44875.55, "status": "ok", "error": null}
+{"request_id": "111", "input_len": 4096, "output_len": 2048, "ttft_ms": 2322.7, "tpot_ms": 16.27, "itl_ms": 24.74, "e2e_ms": 35752.45, "status": "ok", "error": null}
+{"request_id": "112", "input_len": 4096, "output_len": 2048, "ttft_ms": 1901.96, "tpot_ms": 17.12, "itl_ms": 26.7, "e2e_ms": 36797.0, "status": "ok", "error": null}
+{"request_id": "113", "input_len": 4096, "output_len": 2048, "ttft_ms": 2025.64, "tpot_ms": 34.23, "itl_ms": 22.21, "e2e_ms": 71987.67, "status": "ok", "error": null}
+{"request_id": "114", "input_len": 4096, "output_len": 567, "ttft_ms": 5706.33, "tpot_ms": null, "itl_ms": null, "e2e_ms": 26838.83, "status": "error", "error": "HTTP 500: prefill worker restarted"}
+{"request_id": "115", "input_len": 4096, "output_len": 2048, "ttft_ms": 2682.43, "tpot_ms": 23.0, "itl_ms": 20.81, "e2e_ms": 49834.2, "status": "ok", "error": null}
+{"request_id": "116", "input_len": 4096, "output_len": 2048, "ttft_ms": 1809.18, "tpot_ms": 17.69, "itl_ms": 20.98, "e2e_ms": 37929.28, "status": "ok", "error": null}
+{"request_id": "117", "input_len": 4096, "output_len": 2048, "ttft_ms": 2763.74, "tpot_ms": 20.32, "itl_ms": 21.2, "e2e_ms": 44120.65, "status": "ok", "error": null}
+{"request_id": "118", "input_len": 4096, "output_len": 0, "ttft_ms": 4470.22, "tpot_ms": null, "itl_ms": null, "e2e_ms": 32594.8, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.14 GiB (GPU 0; 63.99 GiB total capacity)"}
+{"request_id": "119", "input_len": 4096, "output_len": 2048, "ttft_ms": 2896.24, "tpot_ms": 23.23, "itl_ms": 23.77, "e2e_ms": 50684.35, "status": "ok", "error": null}
+{"request_id": "120", "input_len": 4096, "output_len": 2048, "ttft_ms": 2067.41, "tpot_ms": 19.73, "itl_ms": 23.03, "e2e_ms": 42350.89, "status": "ok", "error": null}
+{"request_id": "121", "input_len": 4096, "output_len": 2048, "ttft_ms": 2267.22, "tpot_ms": 17.09, "itl_ms": 15.36, "e2e_ms": 37232.75, "status": "ok", "error": null}
+{"request_id": "122", "input_len": 4096, "output_len": 2048, "ttft_ms": 3061.5, "tpot_ms": 22.17, "itl_ms": 17.85, "e2e_ms": 48400.35, "status": "ok", "error": null}
+{"request_id": "123", "input_len": 4096, "output_len": 0, "ttft_ms": 6973.22, "tpot_ms": null, "itl_ms": null, "e2e_ms": 52423.4, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "124", "input_len": 4096, "output_len": 2048, "ttft_ms": 3389.04, "tpot_ms": 15.28, "itl_ms": 16.46, "e2e_ms": 34491.77, "status": "ok", "error": null}
+{"request_id": "125", "input_len": 4096, "output_len": 2048, "ttft_ms": 3124.58, "tpot_ms": 17.48, "itl_ms": 20.53, "e2e_ms": 39147.23, "status": "ok", "error": null}
+{"request_id": "126", "input_len": 4096, "output_len": 2048, "ttft_ms": 2144.58, "tpot_ms": 17.67, "itl_ms": 25.0, "e2e_ms": 38333.33, "status": "ok", "error": null}
+{"request_id": "127", "input_len": 4096, "output_len": 2048, "ttft_ms": 1897.68, "tpot_ms": 26.18, "itl_ms": 21.4, "e2e_ms": 55409.46, "status": "ok", "error": null}
+{"request_id": "128", "input_len": 4096, "output_len": 2048, "ttft_ms": 1997.06, "tpot_ms": 21.09, "itl_ms": 20.86, "e2e_ms": 44887.7, "status": "ok", "error": null}
+{"request_id": "129", "input_len": 4096, "output_len": 2048, "ttft_ms": 3501.82, "tpot_ms": 20.3, "itl_ms": 15.36, "e2e_ms": 44454.54, "status": "ok", "error": null}
+{"request_id": "130", "input_len": 4096, "output_len": 0, "ttft_ms": 5478.02, "tpot_ms": null, "itl_ms": null, "e2e_ms": 27771.87, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "131", "input_len": 4096, "output_len": 2048, "ttft_ms": 3225.29, "tpot_ms": 28.99, "itl_ms": 19.04, "e2e_ms": 62496.56, "status": "ok", "error": null}
+{"request_id": "132", "input_len": 4096, "output_len": 2048, "ttft_ms": 1752.34, "tpot_ms": 17.16, "itl_ms": 28.19, "e2e_ms": 37208.37, "status": "ok", "error": null}
+{"request_id": "133", "input_len": 4096, "output_len": 2048, "ttft_ms": 1968.38, "tpot_ms": 30.68, "itl_ms": 17.91, "e2e_ms": 65168.29, "status": "ok", "error": null}
+{"request_id": "134", "input_len": 4096, "output_len": 328, "ttft_ms": 5636.94, "tpot_ms": null, "itl_ms": null, "e2e_ms": 43064.26, "status": "error", "error": "HTTP 500: prefill worker restarted"}
+{"request_id": "135", "input_len": 4096, "output_len": 621, "ttft_ms": 5004.44, "tpot_ms": null, "itl_ms": null, "e2e_ms": 40752.67, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "136", "input_len": 4096, "output_len": 2048, "ttft_ms": 2054.17, "tpot_ms": 20.37, "itl_ms": 19.14, "e2e_ms": 43584.68, "status": "ok", "error": null}
+{"request_id": "137", "input_len": 4096, "output_len": 2048, "ttft_ms": 1912.16, "tpot_ms": 24.46, "itl_ms": 32.7, "e2e_ms": 52604.36, "status": "ok", "error": null}
+{"request_id": "138", "input_len": 4096, "output_len": 614, "ttft_ms": 4268.75, "tpot_ms": null, "itl_ms": null, "e2e_ms": 20031.92, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "139", "input_len": 4096, "output_len": 568, "ttft_ms": 7480.59, "tpot_ms": null, "itl_ms": null, "e2e_ms": 24132.85, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "140", "input_len": 4096, "output_len": 2048, "ttft_ms": 2706.27, "tpot_ms": 23.49, "itl_ms": 21.1, "e2e_ms": 50909.97, "status": "ok", "error": null}
+{"request_id": "141", "input_len": 4096, "output_len": 2048, "ttft_ms": 2274.18, "tpot_ms": 23.2, "itl_ms": 16.68, "e2e_ms": 50359.11, "status": "ok", "error": null}
+{"request_id": "142", "input_len": 4096, "output_len": 2048, "ttft_ms": 2638.24, "tpot_ms": 14.87, "itl_ms": 18.6, "e2e_ms": 33233.07, "status": "ok", "error": null}
+{"request_id": "143", "input_len": 4096, "output_len": 2048, "ttft_ms": 2701.03, "tpot_ms": 15.91, "itl_ms": 18.42, "e2e_ms": 35281.35, "status": "ok", "error": null}
+{"request_id": "144", "input_len": 4096, "output_len": 2048, "ttft_ms": 3118.14, "tpot_ms": 23.3, "itl_ms": 20.35, "e2e_ms": 50685.56, "status": "ok", "error": null}
+{"request_id": "145", "input_len": 4096, "output_len": 2048, "ttft_ms": 2887.09, "tpot_ms": 28.08, "itl_ms": 19.23, "e2e_ms": 60313.6, "status": "ok", "error": null}
+{"request_id": "146", "input_len": 4096, "output_len": 0, "ttft_ms": 3763.29, "tpot_ms": null, "itl_ms": null, "e2e_ms": 26346.63, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "147", "input_len": 4096, "output_len": 2048, "ttft_ms": 2469.52, "tpot_ms": 14.18, "itl_ms": 22.83, "e2e_ms": 31454.54, "status": "ok", "error": null}
+{"request_id": "148", "input_len": 4096, "output_len": 2048, "ttft_ms": 2519.64, "tpot_ms": 28.64, "itl_ms": 15.02, "e2e_ms": 60943.51, "status": "ok", "error": null}
+{"request_id": "149", "input_len": 4096, "output_len": 2048, "ttft_ms": 2241.05, "tpot_ms": 17.45, "itl_ms": 19.46, "e2e_ms": 38067.94, "status": "ok", "error": null}
+{"request_id": "150", "input_len": 4096, "output_len": 2048, "ttft_ms": 2919.14, "tpot_ms": 19.76, "itl_ms": 24.57, "e2e_ms": 43740.5, "status": "ok", "error": null}
+{"request_id": "151", "input_len": 4096, "output_len": 2048, "ttft_ms": 2181.31, "tpot_ms": 20.95, "itl_ms": 21.08, "e2e_ms": 45073.31, "status": "ok", "error": null}
+{"request_id": "152", "input_len": 4096, "output_len": 94, "ttft_ms": 6660.39, "tpot_ms": null, "itl_ms": null, "e2e_ms": 22315.09, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "153", "input_len": 4096, "output_len": 2048, "ttft_ms": 2329.92, "tpot_ms": 20.68, "itl_ms": 29.26, "e2e_ms": 44817.61, "status": "ok", "error": null}
+{"request_id": "154", "input_len": 4096, "output_len": 2048, "ttft_ms": 2256.89, "tpot_ms": 25.87, "itl_ms": 17.49, "e2e_ms": 55397.65, "status": "ok", "error": null}
+{"request_id": "155", "input_len": 4096, "output_len": 505, "ttft_ms": 7505.63, "tpot_ms": null, "itl_ms": null, "e2e_ms": 28587.31, "status": "error", "error": "HTTP 500: prefill worker restarted"}
+{"request_id": "156", "input_len": 4096, "output_len": 0, "ttft_ms": 6012.98, "tpot_ms": null, "itl_ms": null, "e2e_ms": 19312.95, "status": "error", "error": "HTTP 500: prefill worker restarted"}
+{"request_id": "157", "input_len": 4096, "output_len": 2048, "ttft_ms": 2547.46, "tpot_ms": 18.39, "itl_ms": 20.4, "e2e_ms": 40293.84, "status": "ok", "error": null}
+{"request_id": "158", "input_len": 4096, "output_len": 470, "ttft_ms": 7529.57, "tpot_ms": null, "itl_ms": null, "e2e_ms": 36826.52, "status": "error", "error": "HTTP 500: prefill worker restarted"}
+{"request_id": "159", "input_len": 4096, "output_len": 139, "ttft_ms": 4106.19, "tpot_ms": null, "itl_ms": null, "e2e_ms": 16444.66, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "160", "input_len": 4096, "output_len": 578, "ttft_ms": 4595.4, "tpot_ms": null, "itl_ms": null, "e2e_ms": 39684.44, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "161", "input_len": 4096, "output_len": 2048, "ttft_ms": 2563.7, "tpot_ms": 19.28, "itl_ms": 16.91, "e2e_ms": 42178.34, "status": "ok", "error": null}
+{"request_id": "162", "input_len": 4096, "output_len": 2048, "ttft_ms": 2671.95, "tpot_ms": 17.37, "itl_ms": 17.19, "e2e_ms": 38417.66, "status": "ok", "error": null}
+{"request_id": "163", "input_len": 4096, "output_len": 2048, "ttft_ms": 4319.11, "tpot_ms": 21.54, "itl_ms": 19.5, "e2e_ms": 47675.71, "status": "ok", "error": null}
+{"request_id": "164", "input_len": 4096, "output_len": 641, "ttft_ms": 5298.89, "tpot_ms": null, "itl_ms": null, "e2e_ms": 20781.92, "status": "error", "error": "HTTP 503: no healthy prefill worker available (0/4 ready)"}
+{"request_id": "165", "input_len": 4096, "output_len": 2048, "ttft_ms": 2113.46, "tpot_ms": 20.31, "itl_ms": 19.91, "e2e_ms": 43491.86, "status": "ok", "error": null}
+{"request_id": "166", "input_len": 4096, "output_len": 2048, "ttft_ms": 1854.51, "tpot_ms": 19.83, "itl_ms": 20.23, "e2e_ms": 42431.38, "status": "ok", "error": null}
+{"request_id": "167", "input_len": 4096, "output_len": 0, "ttft_ms": 5224.39, "tpot_ms": null, "itl_ms": null, "e2e_ms": 23168.92, "status": "error", "error": "HTTP 503: no healthy prefill worker available (0/4 ready)"}
+{"request_id": "168", "input_len": 4096, "output_len": 2048, "ttft_ms": 2384.87, "tpot_ms": 27.93, "itl_ms": 23.09, "e2e_ms": 59549.67, "status": "ok", "error": null}
+{"request_id": "169", "input_len": 4096, "output_len": 2048, "ttft_ms": 1955.98, "tpot_ms": 16.71, "itl_ms": 16.19, "e2e_ms": 36145.37, "status": "ok", "error": null}
+{"request_id": "170", "input_len": 4096, "output_len": 2048, "ttft_ms": 2107.71, "tpot_ms": 21.41, "itl_ms": 19.02, "e2e_ms": 46170.33, "status": "ok", "error": null}
+{"request_id": "171", "input_len": 4096, "output_len": 2048, "ttft_ms": 1870.81, "tpot_ms": 14.39, "itl_ms": 20.03, "e2e_ms": 31285.71, "status": "ok", "error": null}
+{"request_id": "172", "input_len": 4096, "output_len": 0, "ttft_ms": 5807.88, "tpot_ms": null, "itl_ms": null, "e2e_ms": 23142.05, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.14 GiB (GPU 0; 63.99 GiB total capacity)"}
+{"request_id": "173", "input_len": 4096, "output_len": 2048, "ttft_ms": 2463.11, "tpot_ms": 26.64, "itl_ms": 19.9, "e2e_ms": 57019.21, "status": "ok", "error": null}
+{"request_id": "174", "input_len": 4096, "output_len": 2048, "ttft_ms": 1979.92, "tpot_ms": 27.43, "itl_ms": 24.31, "e2e_ms": 57782.87, "status": "ok", "error": null}
+{"request_id": "175", "input_len": 4096, "output_len": 95, "ttft_ms": 6497.98, "tpot_ms": null, "itl_ms": null, "e2e_ms": 19318.86, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "176", "input_len": 4096, "output_len": 2048, "ttft_ms": 2386.35, "tpot_ms": 15.19, "itl_ms": 18.28, "e2e_ms": 33853.66, "status": "ok", "error": null}
+{"request_id": "177", "input_len": 4096, "output_len": 2048, "ttft_ms": 2292.64, "tpot_ms": 16.57, "itl_ms": 19.33, "e2e_ms": 36399.6, "status": "ok", "error": null}
+{"request_id": "178", "input_len": 4096, "output_len": 2048, "ttft_ms": 2008.38, "tpot_ms": 22.28, "itl_ms": 20.99, "e2e_ms": 47241.81, "status": "ok", "error": null}
+{"request_id": "179", "input_len": 4096, "output_len": 648, "ttft_ms": 3108.11, "tpot_ms": null, "itl_ms": null, "e2e_ms": 29888.0, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "180", "input_len": 4096, "output_len": 461, "ttft_ms": 5775.74, "tpot_ms": null, "itl_ms": null, "e2e_ms": 34874.34, "status": "error", "error": "HTTP 500: prefill worker restarted"}
+{"request_id": "181", "input_len": 4096, "output_len": 2048, "ttft_ms": 1961.91, "tpot_ms": 26.07, "itl_ms": 19.94, "e2e_ms": 55258.87, "status": "ok", "error": null}
+{"request_id": "182", "input_len": 4096, "output_len": 126, "ttft_ms": 3848.88, "tpot_ms": null, "itl_ms": null, "e2e_ms": 30896.39, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "183", "input_len": 4096, "output_len": 317, "ttft_ms": 5444.88, "tpot_ms": null, "itl_ms": null, "e2e_ms": 22244.64, "status": "error", "error": "HTTP 500: prefill worker restarted"}
+{"request_id": "184", "input_len": 4096, "output_len": 452, "ttft_ms": 5409.5, "tpot_ms": null, "itl_ms": null, "e2e_ms": 29818.44, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "185", "input_len": 4096, "output_len": 178, "ttft_ms": 5956.71, "tpot_ms": null, "itl_ms": null, "e2e_ms": 42312.83, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "186", "input_len": 4096, "output_len": 2048, "ttft_ms": 2650.19, "tpot_ms": 27.34, "itl_ms": 11.9, "e2e_ms": 58852.96, "status": "ok", "error": null}
+{"request_id": "187", "input_len": 4096, "output_len": 368, "ttft_ms": 4475.6, "tpot_ms": null, "itl_ms": null, "e2e_ms": 17476.06, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "188", "input_len": 4096, "output_len": 2048, "ttft_ms": 1896.9, "tpot_ms": 24.9, "itl_ms": 28.03, "e2e_ms": 52736.18, "status": "ok", "error": null}
+{"request_id": "189", "input_len": 4096, "output_len": 418, "ttft_ms": 5479.98, "tpot_ms": null, "itl_ms": null, "e2e_ms": 19845.03, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "190", "input_len": 4096, "output_len": 2048, "ttft_ms": 2197.68, "tpot_ms": 18.82, "itl_ms": 25.35, "e2e_ms": 40529.51, "status": "ok", "error": null}
+{"request_id": "191", "input_len": 4096, "output_len": 2048, "ttft_ms": 2420.94, "tpot_ms": 22.29, "itl_ms": 19.59, "e2e_ms": 48078.54, "status": "ok", "error": null}
+{"request_id": "192", "input_len": 4096, "output_len": 2048, "ttft_ms": 2281.03, "tpot_ms": 21.8, "itl_ms": 19.09, "e2e_ms": 46716.34, "status": "ok", "error": null}
+{"request_id": "193", "input_len": 4096, "output_len": 2048, "ttft_ms": 2972.79, "tpot_ms": 20.85, "itl_ms": 17.11, "e2e_ms": 45391.83, "status": "ok", "error": null}
+{"request_id": "194", "input_len": 4096, "output_len": 2048, "ttft_ms": 2230.89, "tpot_ms": 18.26, "itl_ms": 19.07, "e2e_ms": 39805.5, "status": "ok", "error": null}
+{"request_id": "195", "input_len": 4096, "output_len": 96, "ttft_ms": 5640.89, "tpot_ms": null, "itl_ms": null, "e2e_ms": 65185.98, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "196", "input_len": 4096, "output_len": 2048, "ttft_ms": 2262.39, "tpot_ms": 23.47, "itl_ms": 22.98, "e2e_ms": 50037.15, "status": "ok", "error": null}
+{"request_id": "197", "input_len": 4096, "output_len": 2048, "ttft_ms": 2261.31, "tpot_ms": 24.83, "itl_ms": 24.05, "e2e_ms": 52872.38, "status": "ok", "error": null}
+{"request_id": "198", "input_len": 4096, "output_len": 336, "ttft_ms": 5527.01, "tpot_ms": null, "itl_ms": null, "e2e_ms": 36408.88, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "199", "input_len": 4096, "output_len": 2048, "ttft_ms": 2567.09, "tpot_ms": 26.95, "itl_ms": 16.63, "e2e_ms": 57926.67, "status": "ok", "error": null}
+{"request_id": "200", "input_len": 4096, "output_len": 458, "ttft_ms": 9446.42, "tpot_ms": null, "itl_ms": null, "e2e_ms": 20792.26, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "201", "input_len": 4096, "output_len": 2048, "ttft_ms": 2785.31, "tpot_ms": 19.97, "itl_ms": 19.63, "e2e_ms": 43096.69, "status": "ok", "error": null}
+{"request_id": "202", "input_len": 4096, "output_len": 112, "ttft_ms": 5150.61, "tpot_ms": null, "itl_ms": null, "e2e_ms": 42728.47, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "203", "input_len": 4096, "output_len": 2048, "ttft_ms": 2689.94, "tpot_ms": 24.25, "itl_ms": 24.94, "e2e_ms": 52381.63, "status": "ok", "error": null}
+{"request_id": "204", "input_len": 4096, "output_len": 2048, "ttft_ms": 3151.87, "tpot_ms": 22.11, "itl_ms": 27.62, "e2e_ms": 48593.13, "status": "ok", "error": null}
+{"request_id": "205", "input_len": 4096, "output_len": 565, "ttft_ms": 4633.04, "tpot_ms": null, "itl_ms": null, "e2e_ms": 26053.98, "status": "error", "error": "HTTP 500: prefill worker mxgpu-prefill-2 restarted during request"}
+{"request_id": "206", "input_len": 4096, "output_len": 2048, "ttft_ms": 2622.83, "tpot_ms": 26.96, "itl_ms": 23.03, "e2e_ms": 58285.01, "status": "ok", "error": null}
+{"request_id": "207", "input_len": 4096, "output_len": 613, "ttft_ms": 6297.7, "tpot_ms": null, "itl_ms": null, "e2e_ms": 32440.6, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.14 GiB (GPU 0; 63.99 GiB total capacity)"}
+{"request_id": "208", "input_len": 4096, "output_len": 2048, "ttft_ms": 2139.15, "tpot_ms": 25.47, "itl_ms": 23.28, "e2e_ms": 54160.52, "status": "ok", "error": null}
+{"request_id": "209", "input_len": 4096, "output_len": 429, "ttft_ms": 5236.45, "tpot_ms": null, "itl_ms": null, "e2e_ms": 34591.11, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "210", "input_len": 4096, "output_len": 301, "ttft_ms": 4304.19, "tpot_ms": null, "itl_ms": null, "e2e_ms": 25371.12, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "211", "input_len": 4096, "output_len": 2048, "ttft_ms": 2400.64, "tpot_ms": 16.06, "itl_ms": 22.73, "e2e_ms": 35697.37, "status": "ok", "error": null}
+{"request_id": "212", "input_len": 4096, "output_len": 2048, "ttft_ms": 2312.46, "tpot_ms": 19.95, "itl_ms": 29.18, "e2e_ms": 43685.93, "status": "ok", "error": null}
+{"request_id": "213", "input_len": 4096, "output_len": 152, "ttft_ms": 2587.99, "tpot_ms": null, "itl_ms": null, "e2e_ms": 16245.08, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.14 GiB (GPU 0; 63.99 GiB total capacity)"}
+{"request_id": "214", "input_len": 4096, "output_len": 2048, "ttft_ms": 2417.53, "tpot_ms": 16.53, "itl_ms": 27.55, "e2e_ms": 36353.39, "status": "ok", "error": null}
+{"request_id": "215", "input_len": 4096, "output_len": 2048, "ttft_ms": 2761.73, "tpot_ms": 19.06, "itl_ms": 27.62, "e2e_ms": 41656.21, "status": "ok", "error": null}
+{"request_id": "216", "input_len": 4096, "output_len": 2048, "ttft_ms": 2348.2, "tpot_ms": 25.44, "itl_ms": 18.26, "e2e_ms": 54713.34, "status": "ok", "error": null}
+{"request_id": "217", "input_len": 4096, "output_len": 2048, "ttft_ms": 2479.67, "tpot_ms": 16.33, "itl_ms": 24.32, "e2e_ms": 36167.02, "status": "ok", "error": null}
+{"request_id": "218", "input_len": 4096, "output_len": 2048, "ttft_ms": 2488.02, "tpot_ms": 26.71, "itl_ms": 21.88, "e2e_ms": 56907.95, "status": "ok", "error": null}
+{"request_id": "219", "input_len": 4096, "output_len": 2048, "ttft_ms": 2236.46, "tpot_ms": 17.2, "itl_ms": 19.46, "e2e_ms": 37656.15, "status": "ok", "error": null}
+{"request_id": "220", "input_len": 4096, "output_len": 2048, "ttft_ms": 1674.46, "tpot_ms": 16.35, "itl_ms": 22.31, "e2e_ms": 35125.23, "status": "ok", "error": null}
+{"request_id": "221", "input_len": 4096, "output_len": 2048, "ttft_ms": 1980.12, "tpot_ms": 24.07, "itl_ms": 26.25, "e2e_ms": 51067.32, "status": "ok", "error": null}
+{"request_id": "222", "input_len": 4096, "output_len": 690, "ttft_ms": 5797.93, "tpot_ms": null, "itl_ms": null, "e2e_ms": 42828.74, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "223", "input_len": 4096, "output_len": 2048, "ttft_ms": 2796.85, "tpot_ms": 18.86, "itl_ms": 22.82, "e2e_ms": 41759.95, "status": "ok", "error": null}
+{"request_id": "224", "input_len": 4096, "output_len": 2048, "ttft_ms": 1989.19, "tpot_ms": 22.43, "itl_ms": 27.81, "e2e_ms": 47595.41, "status": "ok", "error": null}
+{"request_id": "225", "input_len": 4096, "output_len": 2048, "ttft_ms": 2268.46, "tpot_ms": 29.5, "itl_ms": 16.17, "e2e_ms": 62850.85, "status": "ok", "error": null}
+{"request_id": "226", "input_len": 4096, "output_len": 2048, "ttft_ms": 2862.34, "tpot_ms": 27.02, "itl_ms": 18.02, "e2e_ms": 58193.51, "status": "ok", "error": null}
+{"request_id": "227", "input_len": 4096, "output_len": 2048, "ttft_ms": 1703.48, "tpot_ms": 18.9, "itl_ms": 19.52, "e2e_ms": 40719.76, "status": "ok", "error": null}
+{"request_id": "228", "input_len": 4096, "output_len": 2048, "ttft_ms": 2267.73, "tpot_ms": 27.76, "itl_ms": 24.17, "e2e_ms": 58969.09, "status": "ok", "error": null}
+{"request_id": "229", "input_len": 4096, "output_len": 2048, "ttft_ms": 1760.19, "tpot_ms": 18.78, "itl_ms": 20.43, "e2e_ms": 40105.87, "status": "ok", "error": null}
+{"request_id": "230", "input_len": 4096, "output_len": 0, "ttft_ms": 4058.26, "tpot_ms": null, "itl_ms": null, "e2e_ms": 39774.24, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "231", "input_len": 4096, "output_len": 479, "ttft_ms": 7634.98, "tpot_ms": null, "itl_ms": null, "e2e_ms": 28771.95, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "232", "input_len": 4096, "output_len": 358, "ttft_ms": 5754.35, "tpot_ms": null, "itl_ms": null, "e2e_ms": 31707.14, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "233", "input_len": 4096, "output_len": 2048, "ttft_ms": 2831.33, "tpot_ms": 21.58, "itl_ms": 20.63, "e2e_ms": 47229.69, "status": "ok", "error": null}
+{"request_id": "234", "input_len": 4096, "output_len": 2048, "ttft_ms": 2152.87, "tpot_ms": 17.45, "itl_ms": 24.04, "e2e_ms": 37935.8, "status": "ok", "error": null}
+{"request_id": "235", "input_len": 4096, "output_len": 2048, "ttft_ms": 2405.19, "tpot_ms": 20.54, "itl_ms": 17.49, "e2e_ms": 44172.18, "status": "ok", "error": null}
+{"request_id": "236", "input_len": 4096, "output_len": 81, "ttft_ms": 6328.55, "tpot_ms": null, "itl_ms": null, "e2e_ms": 15750.62, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "237", "input_len": 4096, "output_len": 2048, "ttft_ms": 1792.97, "tpot_ms": 24.09, "itl_ms": 18.24, "e2e_ms": 51003.57, "status": "ok", "error": null}
+{"request_id": "238", "input_len": 4096, "output_len": 2048, "ttft_ms": 1834.14, "tpot_ms": 20.58, "itl_ms": 17.12, "e2e_ms": 44086.02, "status": "ok", "error": null}
+{"request_id": "239", "input_len": 4096, "output_len": 2048, "ttft_ms": 2143.47, "tpot_ms": 14.89, "itl_ms": 23.99, "e2e_ms": 32705.78, "status": "ok", "error": null}
+{"request_id": "240", "input_len": 4096, "output_len": 2048, "ttft_ms": 1987.34, "tpot_ms": 21.99, "itl_ms": 21.87, "e2e_ms": 46947.49, "status": "ok", "error": null}
+{"request_id": "241", "input_len": 4096, "output_len": 266, "ttft_ms": 6384.11, "tpot_ms": null, "itl_ms": null, "e2e_ms": 28032.86, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "242", "input_len": 4096, "output_len": 2048, "ttft_ms": 1654.44, "tpot_ms": 22.3, "itl_ms": 19.18, "e2e_ms": 47140.81, "status": "ok", "error": null}
+{"request_id": "243", "input_len": 4096, "output_len": 2048, "ttft_ms": 2730.45, "tpot_ms": 18.17, "itl_ms": 37.84, "e2e_ms": 39668.76, "status": "ok", "error": null}
+{"request_id": "244", "input_len": 4096, "output_len": 5, "ttft_ms": 6356.01, "tpot_ms": null, "itl_ms": null, "e2e_ms": 33359.86, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.14 GiB (GPU 0; 63.99 GiB total capacity)"}
+{"request_id": "245", "input_len": 4096, "output_len": 2048, "ttft_ms": 2333.97, "tpot_ms": 18.78, "itl_ms": 23.23, "e2e_ms": 40854.38, "status": "ok", "error": null}
+{"request_id": "246", "input_len": 4096, "output_len": 2048, "ttft_ms": 2882.77, "tpot_ms": 18.26, "itl_ms": 24.19, "e2e_ms": 40092.92, "status": "ok", "error": null}
+{"request_id": "247", "input_len": 4096, "output_len": 685, "ttft_ms": 5847.15, "tpot_ms": null, "itl_ms": null, "e2e_ms": 31711.08, "status": "error", "error": "HTTP 504: gateway timeout waiting for decode worker"}
+{"request_id": "248", "input_len": 4096, "output_len": 2048, "ttft_ms": 2321.82, "tpot_ms": 18.88, "itl_ms": 17.04, "e2e_ms": 41037.99, "status": "ok", "error": null}
+{"request_id": "249", "input_len": 4096, "output_len": 2048, "ttft_ms": 2520.41, "tpot_ms": 17.44, "itl_ms": 20.62, "e2e_ms": 38119.36, "status": "ok", "error": null}
+{"request_id": "250", "input_len": 4096, "output_len": 2048, "ttft_ms": 2292.49, "tpot_ms": 19.04, "itl_ms": 24.51, "e2e_ms": 40934.19, "status": "ok", "error": null}
+{"request_id": "251", "input_len": 4096, "output_len": 2048, "ttft_ms": 2616.48, "tpot_ms": 21.23, "itl_ms": 24.65, "e2e_ms": 46231.58, "status": "ok", "error": null}
+{"request_id": "252", "input_len": 4096, "output_len": 2048, "ttft_ms": 2828.71, "tpot_ms": 21.48, "itl_ms": 16.63, "e2e_ms": 47096.45, "status": "ok", "error": null}
+{"request_id": "253", "input_len": 4096, "output_len": 582, "ttft_ms": 4225.5, "tpot_ms": null, "itl_ms": null, "e2e_ms": 26757.11, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "254", "input_len": 4096, "output_len": 317, "ttft_ms": 5675.78, "tpot_ms": null, "itl_ms": null, "e2e_ms": 25556.68, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "255", "input_len": 4096, "output_len": 2048, "ttft_ms": 2908.96, "tpot_ms": 22.6, "itl_ms": 20.22, "e2e_ms": 49217.54, "status": "ok", "error": null}
+{"request_id": "256", "input_len": 4096, "output_len": 2048, "ttft_ms": 2189.63, "tpot_ms": 26.65, "itl_ms": 18.97, "e2e_ms": 57079.4, "status": "ok", "error": null}
+{"request_id": "257", "input_len": 4096, "output_len": 2048, "ttft_ms": 2622.94, "tpot_ms": 17.6, "itl_ms": 26.63, "e2e_ms": 38987.38, "status": "ok", "error": null}
+{"request_id": "258", "input_len": 4096, "output_len": 715, "ttft_ms": 5323.6, "tpot_ms": null, "itl_ms": null, "e2e_ms": 19408.49, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.14 GiB (GPU 0; 63.99 GiB total capacity)"}
+{"request_id": "259", "input_len": 4096, "output_len": 2048, "ttft_ms": 2724.93, "tpot_ms": 23.92, "itl_ms": 21.87, "e2e_ms": 51999.11, "status": "ok", "error": null}
+{"request_id": "260", "input_len": 4096, "output_len": 2048, "ttft_ms": 2806.71, "tpot_ms": 19.06, "itl_ms": 13.3, "e2e_ms": 42139.72, "status": "ok", "error": null}
+{"request_id": "261", "input_len": 4096, "output_len": 2048, "ttft_ms": 3112.15, "tpot_ms": 24.64, "itl_ms": 15.4, "e2e_ms": 53436.97, "status": "ok", "error": null}
+{"request_id": "262", "input_len": 4096, "output_len": 2048, "ttft_ms": 2052.88, "tpot_ms": 25.22, "itl_ms": 21.39, "e2e_ms": 53436.44, "status": "ok", "error": null}
+{"request_id": "263", "input_len": 4096, "output_len": 2048, "ttft_ms": 2810.34, "tpot_ms": 24.7, "itl_ms": 17.06, "e2e_ms": 53639.52, "status": "ok", "error": null}
+{"request_id": "264", "input_len": 4096, "output_len": 33, "ttft_ms": 4425.65, "tpot_ms": null, "itl_ms": null, "e2e_ms": 26572.08, "status": "error", "error": "HTTP 503: no healthy prefill worker available (0/4 ready)"}
+{"request_id": "265", "input_len": 4096, "output_len": 2048, "ttft_ms": 2178.11, "tpot_ms": 25.65, "itl_ms": 30.58, "e2e_ms": 54107.68, "status": "ok", "error": null}
+{"request_id": "266", "input_len": 4096, "output_len": 2048, "ttft_ms": 2272.75, "tpot_ms": 18.69, "itl_ms": 25.73, "e2e_ms": 40899.47, "status": "ok", "error": null}
+{"request_id": "267", "input_len": 4096, "output_len": 2048, "ttft_ms": 3036.29, "tpot_ms": 22.25, "itl_ms": 16.06, "e2e_ms": 48578.16, "status": "ok", "error": null}
+{"request_id": "268", "input_len": 4096, "output_len": 276, "ttft_ms": 4792.42, "tpot_ms": null, "itl_ms": null, "e2e_ms": 22913.35, "status": "error", "error": "HTTP 500: prefill worker mxgpu-prefill-2 restarted during request"}
+{"request_id": "269", "input_len": 4096, "output_len": 655, "ttft_ms": 5958.3, "tpot_ms": null, "itl_ms": null, "e2e_ms": 23065.83, "status": "error", "error": "HTTP 503: no healthy prefill worker available (0/4 ready)"}
+{"request_id": "270", "input_len": 4096, "output_len": 2048, "ttft_ms": 2502.57, "tpot_ms": 12.28, "itl_ms": 21.36, "e2e_ms": 27486.45, "status": "ok", "error": null}
+{"request_id": "271", "input_len": 4096, "output_len": 2048, "ttft_ms": 1855.58, "tpot_ms": 18.88, "itl_ms": 22.88, "e2e_ms": 40539.75, "status": "ok", "error": null}
+{"request_id": "272", "input_len": 4096, "output_len": 2048, "ttft_ms": 2857.55, "tpot_ms": 19.79, "itl_ms": 25.18, "e2e_ms": 43084.78, "status": "ok", "error": null}
+{"request_id": "273", "input_len": 4096, "output_len": 384, "ttft_ms": 4424.65, "tpot_ms": null, "itl_ms": null, "e2e_ms": 23334.18, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.14 GiB (GPU 0; 63.99 GiB total capacity)"}
+{"request_id": "274", "input_len": 4096, "output_len": 674, "ttft_ms": 6014.12, "tpot_ms": null, "itl_ms": null, "e2e_ms": 27507.52, "status": "error", "error": "HTTP 500: prefill worker mxgpu-prefill-2 restarted during request"}
+{"request_id": "275", "input_len": 4096, "output_len": 211, "ttft_ms": 6458.19, "tpot_ms": null, "itl_ms": null, "e2e_ms": 22584.95, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 2.14 GiB (GPU 0; 63.99 GiB total capacity)"}
+{"request_id": "276", "input_len": 4096, "output_len": 2048, "ttft_ms": 3501.33, "tpot_ms": 19.76, "itl_ms": 16.52, "e2e_ms": 43774.96, "status": "ok", "error": null}
+{"request_id": "277", "input_len": 4096, "output_len": 2048, "ttft_ms": 1849.46, "tpot_ms": 21.93, "itl_ms": 25.15, "e2e_ms": 46697.49, "status": "ok", "error": null}
+{"request_id": "278", "input_len": 4096, "output_len": 2048, "ttft_ms": 2877.05, "tpot_ms": 12.53, "itl_ms": 23.24, "e2e_ms": 28401.21, "status": "ok", "error": null}
+{"request_id": "279", "input_len": 4096, "output_len": 2048, "ttft_ms": 2822.81, "tpot_ms": 16.6, "itl_ms": 19.41, "e2e_ms": 36371.3, "status": "ok", "error": null}
+{"request_id": "280", "input_len": 4096, "output_len": 499, "ttft_ms": 6591.69, "tpot_ms": null, "itl_ms": null, "e2e_ms": 42276.9, "status": "error", "error": "HTTP 500: prefill worker restarted"}
+{"request_id": "281", "input_len": 4096, "output_len": 2048, "ttft_ms": 1907.05, "tpot_ms": 15.03, "itl_ms": 20.58, "e2e_ms": 32711.55, "status": "ok", "error": null}
+{"request_id": "282", "input_len": 4096, "output_len": 2048, "ttft_ms": 1692.55, "tpot_ms": 23.73, "itl_ms": 23.79, "e2e_ms": 49697.98, "status": "ok", "error": null}
+{"request_id": "283", "input_len": 4096, "output_len": 2048, "ttft_ms": 1911.47, "tpot_ms": 16.85, "itl_ms": 17.39, "e2e_ms": 36436.32, "status": "ok", "error": null}
+{"request_id": "284", "input_len": 4096, "output_len": 41, "ttft_ms": 5113.15, "tpot_ms": null, "itl_ms": null, "e2e_ms": 31540.16, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "285", "input_len": 4096, "output_len": 2048, "ttft_ms": 2674.86, "tpot_ms": 16.1, "itl_ms": 24.05, "e2e_ms": 35922.94, "status": "ok", "error": null}
+{"request_id": "286", "input_len": 4096, "output_len": 2048, "ttft_ms": 1973.77, "tpot_ms": 34.42, "itl_ms": 26.01, "e2e_ms": 73077.32, "status": "ok", "error": null}
+{"request_id": "287", "input_len": 4096, "output_len": 482, "ttft_ms": 3919.37, "tpot_ms": null, "itl_ms": null, "e2e_ms": 18976.14, "status": "error", "error": "Client error: request timed out after 600s"}
+{"request_id": "288", "input_len": 4096, "output_len": 615, "ttft_ms": 4537.82, "tpot_ms": null, "itl_ms": null, "e2e_ms": 25713.06, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "289", "input_len": 4096, "output_len": 2048, "ttft_ms": 2648.92, "tpot_ms": 18.64, "itl_ms": 20.58, "e2e_ms": 40950.23, "status": "ok", "error": null}
+{"request_id": "290", "input_len": 4096, "output_len": 2048, "ttft_ms": 1819.5, "tpot_ms": 26.05, "itl_ms": 19.44, "e2e_ms": 55042.2, "status": "ok", "error": null}
+{"request_id": "291", "input_len": 4096, "output_len": 2048, "ttft_ms": 2202.65, "tpot_ms": 27.84, "itl_ms": 20.17, "e2e_ms": 58976.67, "status": "ok", "error": null}
+{"request_id": "292", "input_len": 4096, "output_len": 673, "ttft_ms": 3115.62, "tpot_ms": null, "itl_ms": null, "e2e_ms": 27579.9, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 1.07 GiB (GPU 0; 63.99 GiB total capacity; 58.42 GiB already allocated)"}
+{"request_id": "293", "input_len": 4096, "output_len": 361, "ttft_ms": 4292.68, "tpot_ms": null, "itl_ms": null, "e2e_ms": 28083.21, "status": "error", "error": "torch.OutOfMemoryError: CUDA out of memory. Tried to allocate 3.51 GiB (GPU 1; 63.99 GiB total capacity)"}
+{"request_id": "294", "input_len": 4096, "output_len": 2048, "ttft_ms": 3998.14, "tpot_ms": 18.44, "itl_ms": 27.58, "e2e_ms": 41836.6, "status": "ok", "error": null}
+{"request_id": "295", "input_len": 4096, "output_len": 2048, "ttft_ms": 2571.82, "tpot_ms": 20.53, "itl_ms": 30.78, "e2e_ms": 44095.5, "status": "ok", "error": null}
+{"request_id": "296", "input_len": 4096, "output_len": 2048, "ttft_ms": 2570.9, "tpot_ms": 15.14, "itl_ms": 17.06, "e2e_ms": 33285.42, "status": "ok", "error": null}
+{"request_id": "297", "input_len": 4096, "output_len": 104, "ttft_ms": 4469.93, "tpot_ms": null, "itl_ms": null, "e2e_ms": 41607.48, "status": "error", "error": "Client error: request timed out after 600s"}
+{"request_id": "298", "input_len": 4096, "output_len": 2048, "ttft_ms": 1855.63, "tpot_ms": 18.35, "itl_ms": 22.04, "e2e_ms": 39695.17, "status": "ok", "error": null}
+{"request_id": "299", "input_len": 4096, "output_len": 2048, "ttft_ms": 2593.73, "tpot_ms": 15.41, "itl_ms": 23.74, "e2e_ms": 34098.2, "status": "ok", "error": null}
