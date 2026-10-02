@@ -208,6 +208,59 @@ class TestSamples(unittest.TestCase):
         self.assertEqual(len(loaded), 5)
         self.assertAlmostEqual(loaded[0].ttft_ms, samples[0].ttft_ms)
 
+    def test_load_array_format_detail_rows(self) -> None:
+        """bench_serving --output-details 的数组格式：一行含全部请求的数组。
+
+        注意该版本文件里 ttft/itl 单位是**秒**，样本值须转成毫秒（与日志汇总一致）。
+        """
+        import json
+        import tempfile
+
+        row = {
+            "input_lens": [512, 640, 512],
+            "output_lens": [32, 64, 128],
+            "ttfts": [0.4264, 0.3001, 0.5009],  # 秒
+            "itls": [0.0194, 0.0182, 0.0201],   # 秒
+            "generated_texts": ["a", "b", "c"],
+            "errors": [None, "timeout", None],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "r.jsonl"
+            path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+            loaded = load_samples(path)
+        self.assertEqual(len(loaded), 3)
+        self.assertEqual(loaded[0].input_len, 512)
+        self.assertEqual(loaded[0].output_len, 32)
+        self.assertAlmostEqual(loaded[0].ttft_ms, 426.4)  # 0.4264s → 426.4ms
+        self.assertAlmostEqual(loaded[0].tpot_ms, 19.4)  # TPOT≈ITL 近似
+        self.assertAlmostEqual(loaded[1].ttft_ms, 300.1)
+        self.assertTrue(loaded[0].ok)
+        self.assertFalse(loaded[1].ok)
+        self.assertEqual(loaded[1].error, "timeout")
+        self.assertTrue(loaded[2].ok)
+
+    def test_load_nested_itl_arrays_takes_mean(self) -> None:
+        """该版本 itls 是嵌套数组（每请求一条 per-token 秒级序列），取均值×1000。"""
+        import json
+        import tempfile
+
+        row = {
+            "input_lens": [8],
+            "output_lens": [4],
+            "ttfts": [0.1],
+            "itls": [[0.02, 0.04, 0.06, 0.08]],  # mean = 0.05s → 50ms
+            "generated_texts": ["x"],
+            "errors": [None],
+        }
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "r.jsonl"
+            path.write_text(json.dumps(row) + "\n", encoding="utf-8")
+            loaded = load_samples(path)
+        self.assertEqual(len(loaded), 1)
+        self.assertAlmostEqual(loaded[0].itl_ms, 50.0)
+        self.assertAlmostEqual(loaded[0].tpot_ms, 50.0)
+        self.assertAlmostEqual(loaded[0].ttft_ms, 100.0)
+
 
 class TestRendererConsistency(unittest.TestCase):
     """自造日志的汇总统计必须与样本重算一致（防止解析器与统计口径漂移）。"""

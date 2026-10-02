@@ -253,13 +253,80 @@ def detect_issues(text: str, limit_per_kind: int = 5) -> list[Issue]:
 # --------------------------------------------------------------------------- #
 
 
+def _at(vals: Any, index: int) -> float | int | None:
+    """取明细数组的第 index 个值；非列表/越界返回 None。"""
+    if isinstance(vals, list) and index < len(vals):
+        return vals[index]
+    return None
+
+
+def _itl_sample(vals: Any) -> float | None:
+    """把 per-request 的 ITL 值归一成单个样本值（秒 → 毫秒）。
+
+    该版本 bench_serving 的 ``itls`` 是嵌套数组：每个请求的 itl 又是一条
+    per-token 间隔序列（单位**秒**）—— 取序列均值×1000 作为该请求的 ITL 样本
+    （毫秒，与日志汇总口径一致）；标量同样按秒→毫秒转换。
+    """
+    if isinstance(vals, list):
+        nums = [v for v in vals if isinstance(v, (int, float)) and v == v]
+        return (sum(nums) / len(nums) * 1000.0) if nums else None
+    if isinstance(vals, (int, float)) and vals == vals:
+        return float(vals) * 1000.0
+    return None
+
+
+def _samples_from_array_row(row: Mapping[str, Any]) -> list[Sample]:
+    """展开 bench_serving ``--output-details`` 的数组格式行。
+
+    该版本（0.5.8+maca3.7.1.12.dsv4）每行是 *一次 run* 的聚合：
+    ``{input_lens: [...], output_lens: [...], ttfts: [...], itls: [...],
+    generated_texts: [...], errors: [...]}`` —— 按索引拆成每请求一条。
+    该格式没有 per-request 的 e2e/tpot：TPOT 用 ITL 近似（本集群实测 TPOT≈ITL），
+    e2e 留空（汇总指标里仍有 mean/p99 e2e，分布级检验跳过该项）。
+    """
+    n = 0
+    for key in ("input_lens", "output_lens", "ttfts", "itls", "errors"):
+        vals = row.get(key)
+        if isinstance(vals, list):
+            n = max(n, len(vals))
+    out: list[Sample] = []
+    for i in range(n):
+        error = _at(row.get("errors"), i)
+        itl = _itl_sample(_at(row.get("itls"), i))
+        ttft = _at(row.get("ttfts"), i)
+        out.append(
+            Sample(
+                request_id=str(i),
+                input_len=_at(row.get("input_lens"), i),
+                output_len=_at(row.get("output_lens"), i),
+                ttft_ms=(float(ttft) * 1000.0) if isinstance(ttft, (int, float)) else None,  # 文件单位是秒
+                itl_ms=itl,
+                tpot_ms=itl,  # 本集群 ITL≈TPOT，作为 per-request 近似
+                e2e_ms=None,
+                status="error" if error else "ok",
+                error=str(error) if error else None,
+            )
+        )
+    return out
+
+
 def load_samples(path: str | Path) -> list[Sample]:
-    """读取每请求明细：支持 ``.jsonl``（逐行）与 ``.json``（数组或对象）。"""
+    """读取每请求明细：支持 ``.jsonl``（逐行）与 ``.json``（数组或对象）。
+
+    行内含 ``ttfts``/``input_lens`` 列表的按数组格式展开（bench_serving
+    ``--output-details``），其余按标准字段映射。
+    """
     p = Path(path)
     if not p.exists():
         return []
     if p.suffix.lower() == ".jsonl":
-        return [Sample.from_mapping(row) for row in iter_jsonl(p)]
+        out: list[Sample] = []
+        for row in iter_jsonl(p):
+            if isinstance(row, Mapping) and isinstance(row.get("ttfts"), list):
+                out.extend(_samples_from_array_row(row))
+            else:
+                out.append(Sample.from_mapping(row))
+        return out
     data = read_json(p, default=None)
     if data is None:
         return []

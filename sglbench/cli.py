@@ -43,6 +43,7 @@ from .report import (
 )
 from .runner import (
     BENCH_MODULE,
+    DETAIL_DETAILS_FLAG,
     DETAIL_FLAG,
     EXEC_MODE_LOCAL,
     ExecEnv,
@@ -168,6 +169,8 @@ def cmd_run(args: argparse.Namespace) -> int:
         # dry-run 只用于预览/复制到集群，路径用可替换的占位符而不是本机绝对路径
         detail_path=("$RUN_DIR/requests.jsonl" if not args.no_dump_requests else None),
         detail_flag=args.detail_flag,
+        # 远程通道的容器版本支持 --output-details（每请求明细必需）
+        details_flag=DETAIL_DETAILS_FLAG if exec_env.is_remote else None,
     )
     display_cmd = exec_env.shell_wrap(cmd, env=scenario.env) if exec_env.is_remote else cmd
 

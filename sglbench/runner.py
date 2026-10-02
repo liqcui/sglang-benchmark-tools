@@ -43,6 +43,9 @@ from .util import (
 
 BENCH_MODULE = "sglang.bench_serving"
 DETAIL_FLAG = "--output-file"
+# 本版本 bench_serving 必须带 --output-details 才会把每请求明细（数组格式）写进
+# --output-file 指向的 JSONL；否则只有一行汇总 JSON，无法做分布级分析。
+DETAIL_DETAILS_FLAG = "--output-details"
 EXPORT_TARGET_DIR = "/var/log"
 
 # 本集群 bench_serving（sglang 0.5.8+maca3.7.1.12.dsv4）的随机长度参数名：
@@ -85,6 +88,7 @@ def build_command(
     python: str | None = None,
     detail_path: str | Path | None = None,
     detail_flag: str = DETAIL_FLAG,
+    details_flag: str | None = None,
     module: str = BENCH_MODULE,
     input_len_flag: str = FLAG_RANDOM_INPUT,
     output_len_flag: str = FLAG_RANDOM_OUTPUT,
@@ -118,6 +122,8 @@ def build_command(
     cmd += list(sc.extra_args)
     if detail_path:
         cmd += [detail_flag, str(detail_path)]
+        if details_flag:
+            cmd += [details_flag]
     return cmd
 
 
@@ -660,10 +666,14 @@ def run_scenario(
 
     detail_path: Path | None = None
     used_detail_flag: str | None = None
+    used_details_flag: str | None = None
     if dump_requests:
         if probe_detail_flag(python_used, module, detail_flag, env=env, exec_env=channel):
             detail_path = rdir / "requests.jsonl"
             used_detail_flag = detail_flag
+            # 该版本必须带 --output-details 才写每请求明细（数组格式）
+            if probe_detail_flag(python_used, module, DETAIL_DETAILS_FLAG, env=env, exec_env=channel):
+                used_details_flag = DETAIL_DETAILS_FLAG
 
     # 注意：明细文件由 bench_serving 自己写；我们随后会读它并重写成标准格式。
     # 容器内写 /tmp/sglbench-<run_id>.jsonl，跑完拷回本地 rdir/requests.jsonl。
@@ -675,6 +685,7 @@ def run_scenario(
         python=python_used,
         detail_path=bench_detail,
         detail_flag=detail_flag,
+        details_flag=used_details_flag,
         module=module,
         overrides=None,
     )
@@ -717,6 +728,7 @@ def run_scenario(
         exec_env=channel,
         extra={
             "detail_flag": used_detail_flag,
+            "details_flag": used_details_flag,
             "dump_requests": bool(detail_path),
             "content_sha256": sha256_text(exec_result.log_text),
         },

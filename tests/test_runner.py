@@ -79,6 +79,14 @@ class TestBuildCommand(unittest.TestCase):
         self.assertIn("--output-file", cmd)
         self.assertEqual(cmd[-1], "/tmp/r.jsonl")
 
+    def test_details_flag_appended_after_output_file(self) -> None:
+        cmd = build_command(
+            BUILTIN_SCENARIOS["single-standard"],
+            detail_path="/tmp/r.jsonl",
+            details_flag="--output-details",
+        )
+        self.assertEqual(cmd[-3:], ["--output-file", "/tmp/r.jsonl", "--output-details"])
+
     def test_extra_args_preserved(self) -> None:
         scenario = Scenario(key="x", name="x", family="custom", extra_args=["--print-requests"])
         self.assertIn("--print-requests", build_command(scenario))
