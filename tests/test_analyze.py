@@ -126,7 +126,7 @@ class TestGates(unittest.TestCase):
 
     def test_success_rate_fail(self) -> None:
         metrics = {**BASE_METRICS, "success_rate": 0.7067, "failed_requests": 88.0}
-        gates = evaluate_gates(get_scenario("conc-128-standard"), metrics)
+        gates = evaluate_gates(get_scenario("conc-128-crash-probe"), metrics)
         statuses = {g.metric: g.status for g in gates}
         self.assertEqual(statuses["success_rate"], "fail")
         self.assertEqual(statuses["failed_requests"], "fail")
@@ -251,7 +251,7 @@ class TestCompareRuns(unittest.TestCase):
             store.save_run(
                 record(
                     "crash",
-                    scenario_key="conc-128-standard",
+                    scenario_key="conc-128-crash-probe",
                     status="partial",
                     metrics={**BASE_METRICS, "success_rate": 0.7067, "failed_requests": 88.0},
                     params={"num_prompts": 300, "max_concurrency": 128},
@@ -279,7 +279,7 @@ class TestSweep(unittest.TestCase):
         ladder = [
             ("conc-32-standard", 32.0, 4.0, 30454.0, 620.0, 980.0, 11.2, 1.0),
             ("conc-64-standard", 64.0, 6.0, 15500.0, 1180.0, 1940.0, 14.8, 1.0),
-            ("conc-128-standard", 128.0, 8.0, 10100.0, 2450.0, 3980.0, 21.5, 0.7067),
+            ("conc-128-crash-probe", 128.0, 8.0, 10100.0, 2450.0, 3980.0, 21.5, 0.7067),
             ("conc-256-standard", 256.0, 16.0, 6000.0, 5200.0, 8600.0, 30.0, 1.0),
         ]
         for key, conc, rate, total_tp, mttft, p99ttft, mtpot, sr in ladder:
@@ -306,7 +306,7 @@ class TestSweep(unittest.TestCase):
         with temp_home() as paths, Store(paths.db) as store:
             self._seed_ladder(store)
             sweep = analyze_sweep(store, scenario_keys=[k for k, *_ in [
-                ("conc-32-standard",), ("conc-64-standard",), ("conc-128-standard",), ("conc-256-standard",)
+                ("conc-32-standard",), ("conc-64-standard",), ("conc-128-crash-probe",), ("conc-256-standard",)
             ]])
             self.assertEqual([p.max_concurrency for p in sweep.points], [32.0, 64.0, 128.0, 256.0])
 
@@ -358,7 +358,7 @@ class TestSmallHelpers(unittest.TestCase):
         self.assertEqual(art[-1], "█")
 
     def test_scenario_catalog_usable(self) -> None:
-        self.assertIn("conc-128-standard", BUILTIN_SCENARIOS)
+        self.assertIn("conc-128-crash-probe", BUILTIN_SCENARIOS)
 
 
 if __name__ == "__main__":

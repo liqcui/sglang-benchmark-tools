@@ -45,6 +45,21 @@ BENCH_MODULE = "sglang.bench_serving"
 DETAIL_FLAG = "--output-file"
 EXPORT_TARGET_DIR = "/var/log"
 
+# 本集群 bench_serving（sglang 0.5.8+maca3.7.1.12.dsv4）的随机长度参数名：
+# 上游文档里的 --random-input/--random-output 在此版本**不存在**（argparse 直接报错）
+FLAG_RANDOM_INPUT = "--random-input-len"
+FLAG_RANDOM_OUTPUT = "--random-output-len"
+
+# ---- 执行通道：bench_serving 必须跑在容器/pod 里（宿主 python3 无 sglang） ----
+EXEC_MODE_LOCAL = "local"
+EXEC_MODE_DOCKER = "docker"
+EXEC_MODE_KUBECTL = "kubectl"
+EXEC_MODES = (EXEC_MODE_LOCAL, EXEC_MODE_DOCKER, EXEC_MODE_KUBECTL)
+DOCKER_CONTAINER = "sglang-benchmark"     # 宿主 10.66.2.1 上的压测容器（模型在 /workspace/data）
+KUBECTL_NAMESPACE = "metax-ai-pd"
+KUBECTL_POD = "pd-bench-client"
+CONTAINER_PYTHON = "/opt/conda/bin/python"  # 容器内 conda base 解释器
+
 _probe_cache: dict[tuple[str, str, str], bool] = {}
 
 
@@ -71,9 +86,15 @@ def build_command(
     detail_path: str | Path | None = None,
     detail_flag: str = DETAIL_FLAG,
     module: str = BENCH_MODULE,
+    input_len_flag: str = FLAG_RANDOM_INPUT,
+    output_len_flag: str = FLAG_RANDOM_OUTPUT,
     overrides: Mapping[str, Any] | None = None,
 ) -> list[str]:
-    """按文档里的参数顺序生成 bench_serving 命令行。"""
+    """按文档里的参数顺序生成 bench_serving 命令行。
+
+    随机长度参数默认用本集群版本的 ``--random-input-len/--random-output-len``；
+    遇到其他 sglang 版本可用 ``input_len_flag/output_len_flag`` 覆盖。
+    """
     sc = apply_overrides(scenario, overrides or {})
     cmd: list[str] = [python_executable(python), "-m", module]
     cmd += ["--backend", sc.backend]
@@ -88,8 +109,8 @@ def build_command(
     cmd += ["--model", sc.model]
     cmd += ["--num-prompts", str(sc.num_prompts)]
     cmd += ["--max-concurrency", str(sc.max_concurrency)]
-    cmd += ["--random-input", str(sc.random_input)]
-    cmd += ["--random-output", str(sc.random_output)]
+    cmd += [input_len_flag, str(sc.random_input)]
+    cmd += [output_len_flag, str(sc.random_output)]
     cmd += ["--random-range-ratio", str(sc.random_range_ratio)]
     if sc.pd_separated:
         cmd += ["--pd-separated"]
@@ -171,6 +192,75 @@ def apply_overrides(scenario: Scenario, overrides: Mapping[str, Any]) -> Scenari
 
 
 # --------------------------------------------------------------------------- #
+# 执行通道
+# --------------------------------------------------------------------------- #
+
+
+@dataclass(frozen=True)
+class ExecEnv:
+    """bench_serving 的执行通道。
+
+    - ``local``：宿主直接跑（需本机装有 sglang）；
+    - ``docker``：本机 ``sglang-benchmark`` 容器（宿主 10.66.2.1，模型/数据集齐全）；
+    - ``kubectl``：集群 ``pd-bench-client`` pod（GLM 模型只在 pod 里，kubectl 通道必需）。
+
+    容器内执行的命令通过 ``bash -lc '<POSIX 引号命令>'`` 包装；每请求明细写到容器
+    内 ``/tmp``，跑完后用 ``docker cp`` / ``kubectl cp`` 拷回本地。
+    """
+
+    mode: str = EXEC_MODE_LOCAL
+    container: str = DOCKER_CONTAINER
+    namespace: str = KUBECTL_NAMESPACE
+    pod: str = KUBECTL_POD
+    python: str | None = CONTAINER_PYTHON
+
+    @classmethod
+    def for_mode(cls, mode: str | None) -> "ExecEnv":
+        mode = mode or EXEC_MODE_LOCAL
+        if mode not in EXEC_MODES:
+            raise ValueError(f"未知执行通道: {mode!r}（可选 {'/'.join(EXEC_MODES)}）")
+        if mode == EXEC_MODE_LOCAL:
+            return cls(mode=EXEC_MODE_LOCAL, python=None)
+        if mode == EXEC_MODE_DOCKER:
+            return cls(mode=EXEC_MODE_DOCKER)
+        return cls(mode=EXEC_MODE_KUBECTL)
+
+    @property
+    def is_remote(self) -> bool:
+        return self.mode != EXEC_MODE_LOCAL
+
+    def shell_wrap(self, cmd: Sequence[str], env: Mapping[str, str] | None = None) -> list[str]:
+        """把压测命令包进容器执行；``env`` 以 export 前缀注入（如 HF_HUB_OFFLINE）。"""
+        inner = command_string(cmd)
+        if env:
+            exports = " && ".join(f"export {k}={shlex.quote(str(v))}" for k, v in env.items())
+            inner = f"{exports} && {inner}"
+        if self.mode == EXEC_MODE_DOCKER:
+            return ["sudo", "-n", "docker", "exec", self.container, "bash", "-lc", inner]
+        if self.mode == EXEC_MODE_KUBECTL:
+            return ["kubectl", "-n", self.namespace, "exec", self.pod, "--", "bash", "-c", inner]
+        return list(cmd)
+
+    def detail_container_path(self, run_id: str) -> str:
+        """容器内每请求明细文件路径（压测进程写入的位置）。"""
+        return f"/tmp/sglbench-{run_id}.jsonl"
+
+    def fetch_detail(self, run_id: str, local_dest: str | Path) -> None:
+        """把容器/pod 里写的明细拷回本地（失败不抛错，只影响分布分析）。"""
+        dest = str(local_dest)
+        try:
+            if self.mode == EXEC_MODE_DOCKER:
+                cmd = ["sudo", "-n", "docker", "cp", f"{self.container}:{self.detail_container_path(run_id)}", dest]
+            elif self.mode == EXEC_MODE_KUBECTL:
+                cmd = ["kubectl", "-n", self.namespace, "cp", f"{self.pod}:{self.detail_container_path(run_id)}", dest]
+            else:
+                return
+            subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        except (OSError, subprocess.SubprocessError):
+            pass
+
+
+# --------------------------------------------------------------------------- #
 # 能力探测
 # --------------------------------------------------------------------------- #
 
@@ -182,20 +272,24 @@ def probe_detail_flag(
     *,
     env: Mapping[str, str] | None = None,
     timeout: float = 90.0,
+    exec_env: ExecEnv | None = None,
 ) -> bool:
     """探测当前 SGLang 是否支持每请求明细导出（不同版本参数名不一样）。
 
     结果在本进程内缓存；探测失败（例如没装 sglang）时返回 ``False`` 并只影响
-    "能不能画直方图"，不影响压测本身。
+    "能不能画直方图"，不影响压测本身。``exec_env`` 非 local 时在容器内探测。
     """
-    exe = python_executable(python)
+    channel = exec_env or ExecEnv()
+    exe = python or channel.python or python_executable(python)
+    probe = [exe, "-m", module, "--help"]
     cache_key = (exe, module, flag)
     if cache_key in _probe_cache:
         return _probe_cache[cache_key]
     supported = False
     try:
+        cmd = channel.shell_wrap(probe) if channel.is_remote else probe
         proc = subprocess.run(
-            [exe, "-m", module, "--help"],
+            cmd,
             capture_output=True,
             text=True,
             encoding="utf-8",
@@ -373,8 +467,10 @@ def collect_meta(
     module: str = BENCH_MODULE,
     cwd: str | Path | None = None,
     extra: Mapping[str, Any] | None = None,
+    exec_env: ExecEnv | None = None,
 ) -> dict[str, Any]:
     """运行环境快照：可复现性靠它，而不是靠记忆。"""
+    channel = exec_env or ExecEnv()
     meta: dict[str, Any] = {
         "tool": "sglbench",
         "hostname": platform.node(),
@@ -382,12 +478,13 @@ def collect_meta(
         "python_version": platform.python_version(),
         "python_executable": python_executable(python),
         "bench_module": module,
+        "exec_mode": channel.mode,
         "cwd": str(cwd or Path.cwd()),
         "captured_at": iso(utcnow()),
         "operator": _default_operator(),
     }
     meta["git_sha"] = _git_sha(cwd)
-    meta["sglang_version"] = _module_version(python, "sglang")
+    meta["sglang_version"] = _module_version(channel.python if channel.is_remote else python, "sglang", exec_env=channel)
     meta.update(dict(extra or {}))
     return meta
 
@@ -416,14 +513,13 @@ def _git_sha(cwd: str | Path | None) -> str | None:
     return None
 
 
-def _module_version(python: str | None, module: str) -> str | None:
+def _module_version(python: str | None, module: str, exec_env: ExecEnv | None = None) -> str | None:
+    channel = exec_env or ExecEnv()
+    exe = python or channel.python or python_executable(python)
+    probe = [exe, "-c", f"import {module} as m; print(getattr(m, '__version__', 'unknown'))"]
     try:
-        proc = subprocess.run(
-            [python_executable(python), "-c", f"import {module} as m; print(getattr(m, '__version__', 'unknown'))"],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
+        cmd = channel.shell_wrap(probe) if channel.is_remote else probe
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         if proc.returncode == 0:
             return proc.stdout.strip()
     except (OSError, subprocess.SubprocessError):
@@ -544,8 +640,14 @@ def run_scenario(
     overrides: Mapping[str, Any] | None = None,
     on_line: Callable[[str], None] | None = None,
     log_path: str | Path | None = None,
+    exec_env: ExecEnv | None = None,
 ) -> RunOutcome:
-    """执行一次场景压测并落盘、入库前的完整采集。"""
+    """执行一次场景压测并落盘、入库前的完整采集。
+
+    ``exec_env`` 非 local 时命令经容器包装执行（docker/kubectl），明细文件写容器
+    内 /tmp 后拷回本地 rdir/requests.jsonl。记录的 command 是容器内实际执行的那条。
+    """
+    channel = exec_env or ExecEnv()
     paths.ensure()
     sc = apply_overrides(scenario, overrides or {})
     rid = run_id or new_run_id(sc.key)
@@ -554,28 +656,43 @@ def run_scenario(
 
     env = {**os.environ.copy()}
     env.update(sc.env)
+    python_used = channel.python if channel.is_remote else python
 
     detail_path: Path | None = None
     used_detail_flag: str | None = None
     if dump_requests:
-        if probe_detail_flag(python, module, detail_flag, env=env):
+        if probe_detail_flag(python_used, module, detail_flag, env=env, exec_env=channel):
             detail_path = rdir / "requests.jsonl"
             used_detail_flag = detail_flag
 
-    # 注意：明细文件由 bench_serving 自己写；我们随后会读它并重写成标准格式
+    # 注意：明细文件由 bench_serving 自己写；我们随后会读它并重写成标准格式。
+    # 容器内写 /tmp/sglbench-<run_id>.jsonl，跑完拷回本地 rdir/requests.jsonl。
+    bench_detail = (
+        channel.detail_container_path(rid) if channel.is_remote else detail_path
+    ) if dump_requests and detail_path else detail_path
     cmd = build_command(
         sc,
-        python=python,
-        detail_path=detail_path,
+        python=python_used,
+        detail_path=bench_detail,
         detail_flag=detail_flag,
         module=module,
         overrides=None,
     )
     cmd_text = command_string(cmd)
+    exec_cmd = channel.shell_wrap(cmd, env=sc.env) if channel.is_remote else cmd
 
-    exec_result = execute(cmd, log_path=raw_log, env=env, cwd=cwd, timeout=timeout, on_line=on_line)
+    exec_result = execute(
+        exec_cmd,
+        log_path=raw_log,
+        env=env if not channel.is_remote else None,
+        cwd=cwd,
+        timeout=timeout,
+        on_line=on_line,
+    )
 
     samples: list[Sample] = []
+    if channel.is_remote and detail_path:
+        channel.fetch_detail(rid, detail_path)
     if detail_path and detail_path.exists():
         samples = load_samples(detail_path)
     else:
@@ -597,6 +714,7 @@ def run_scenario(
         python=python,
         module=module,
         cwd=cwd,
+        exec_env=channel,
         extra={
             "detail_flag": used_detail_flag,
             "dump_requests": bool(detail_path),

@@ -44,6 +44,8 @@ from .report import (
 from .runner import (
     BENCH_MODULE,
     DETAIL_FLAG,
+    EXEC_MODE_LOCAL,
+    ExecEnv,
     build_command,
     discover_logs,
     ingest_log,
@@ -154,24 +156,28 @@ def cmd_run(args: argparse.Namespace) -> int:
     if args.set:
         scenario = apply_set(scenario, parse_kv(args.set))
     store = None if args.no_store else Store(paths.db)
+    exec_env = ExecEnv.for_mode(getattr(args, "exec_mode", EXEC_MODE_LOCAL))
 
     timeout = parse_duration(args.timeout).total_seconds() if args.timeout else None
 
+    python_used = exec_env.python if exec_env.is_remote else args.python
     cmd = build_command(
         scenario,
-        python=args.python,
+        python=python_used,
         module=args.module,
         # dry-run 只用于预览/复制到集群，路径用可替换的占位符而不是本机绝对路径
         detail_path=("$RUN_DIR/requests.jsonl" if not args.no_dump_requests else None),
         detail_flag=args.detail_flag,
     )
+    display_cmd = exec_env.shell_wrap(cmd, env=scenario.env) if exec_env.is_remote else cmd
 
     if args.dry_run:
         if args.json:
-            print(json.dumps({"command": list(cmd), "scenario": scenario.to_dict()}, ensure_ascii=False, indent=2))
+            print(json.dumps({"command": list(display_cmd), "scenario": scenario.to_dict()}, ensure_ascii=False, indent=2))
         else:
             print(f"# 场景: {scenario.key} — {scenario.name}")
-            print(render_shell(scenario, cmd))
+            print(f"# 执行通道: {exec_env.mode}")
+            print(render_shell(scenario, display_cmd))
         if store:
             store.upsert_scenario(scenario)
             store.close()
@@ -201,6 +207,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             dump_requests=not args.no_dump_requests,
             timeout=timeout,
             overrides=None,
+            exec_env=exec_env,
             on_line=None if args.quiet else (lambda line: _eprint(f"  | {line}") if args.verbose else None),
         )
         outcomes.append(outcome)
@@ -922,6 +929,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="覆盖场景参数，如 max_concurrency=64")
     p.add_argument("--python", help="解释器（默认 python3）")
     p.add_argument("--module", default=BENCH_MODULE)
+    p.add_argument("--exec", dest="exec_mode", choices=("local", "docker", "kubectl"), default="local",
+                   help="执行通道：local=宿主直接跑；docker=本机 sglang-benchmark 容器；kubectl=集群 pd-bench-client pod")
     p.add_argument("--detail-flag", default=DETAIL_FLAG, help="每请求明细导出参数名")
     p.add_argument("--no-dump-requests", action="store_true", help="不尝试导出每请求明细")
     p.add_argument("--timeout", help="超时（如 30m / 2h）")

@@ -87,8 +87,8 @@ LOGS = EXAMPLES / "logs"
 SECOND_RUN = LOGS / "second-run"
 
 DEFAULT_MODEL = "/workspace/data/GLM-5.2-W8A8"
-DEFAULT_DATASET = "/workspace/data/ShareGPT_V3_unfiltered_cleaned_split.json"
-BASE_URL = "http://10.66.1.232:8081"
+DEFAULT_DATASET = "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json"
+BASE_URL = "http://10.66.3.32:8001"  # sglbench.scenarios.ROUTER
 
 # Percentile ordering used by bench_serving's result block.
 PCTS = ("Mean", "Median", "P90", "P95", "P99")
@@ -121,9 +121,9 @@ class Run:
     ttft_tail: float
     tpot_tail: float
 
-    backend: str = "sglang-oai-chat"
-    host: str = "10.66.1.232"
-    port: int = 8081
+    backend: str = "sglang-oai-chat"  # GLM 场景约定（prefill/decode-only 显式覆盖为 sglang）
+    host: str = "10.66.3.32"
+    port: int = 8001
     use_base_url: bool = True
     model: str = DEFAULT_MODEL
     dataset_path: str = DEFAULT_DATASET
@@ -224,9 +224,10 @@ RUNS: list[Run] = [
         seed=3002,
     ),
     # Crash run: 300 submitted, 212 succeed, 88 die mid-flight.
+    # 128 并发 @ rate=8.0 是实测崩溃边界（prefill pod 重启）——探针场景。
     Run(
-        name="conc-128-standard__baseline",
-        scenario="conc-128-standard",
+        name="conc-128-crash-probe__baseline",
+        scenario="conc-128-crash-probe",
         num_prompts=300,
         max_concurrency=128,
         input_len=4096,
@@ -262,7 +263,7 @@ RUNS: list[Run] = [
         ttft_tail=1.60,
         tpot_tail=1.35,
         backend="sglang",
-        host="10.66.1.232",
+        host="10.66.3.29",
         port=8000,
         use_base_url=False,
         seed=4001,
@@ -281,8 +282,8 @@ RUNS: list[Run] = [
         ttft_tail=1.60,
         tpot_tail=1.65,
         backend="sglang",
-        host="10.66.1.166",
-        port=8000,
+        host="10.66.3.35",
+        port=8200,
         use_base_url=False,
         seed=4002,
     ),
@@ -723,9 +724,9 @@ examples/
 | `single-longctx__baseline` | c=1, n=20, in=65536, out=8192, rr=0.5 | 长上下文：TTFT、TPOT 显著变慢 |
 | `conc-32-standard__baseline` | c=32, n=200, in=4096, out=2048, rr=4.0 | 中等并发 |
 | `conc-64-standard__baseline` | c=64, n=200, in=4096, out=2048, rr=6.0 | 高并发 |
-| `conc-128-standard__baseline` | c=128, n=300, in=4096, out=2048, rr=8.0 | **崩溃场景**：300 提交 / 212 成功 / 88 失败（OOM、prefill worker 重启、超时） |
-| `prefill-only__baseline` | host `10.66.1.232:8000`, backend=sglang, c=64, n=100, in=8192, out=128, rr=2.0 | prefill 节点单独压测（极短输出） |
-| `decode-only__baseline` | host `10.66.1.166:8000`, backend=sglang, c=32, n=100, in=2048, out=2048, rr=5.0 | decode 节点单独压测 |
+| `conc-128-crash-probe__baseline` | c=128, n=300, in=4096, out=2048, rr=8.0 | **崩溃场景**（128 并发 @8.0 实测崩 prefill）：300 提交 / 212 成功 / 88 失败（OOM、prefill worker 重启、超时） |
+| `prefill-only__baseline` | host `10.66.3.29:8000`, backend=sglang, c=64, n=100, in=8192, out=128, rr=2.0 | prefill 节点单独压测（极短输出） |
+| `decode-only__baseline` | host `10.66.3.35:8200`, backend=sglang, c=32, n=100, in=2048, out=2048, rr=5.0 | decode 节点单独压测 |
 
 **批次二（`logs/second-run/`）—— 多 run 对比补充数据**
 
@@ -811,7 +812,7 @@ python tools/make_examples.py
 1. **失败请求不计入延迟统计，也不计入 token 吞吐分子**。真实 `bench_serving` 的
    `input_lens`/`output_lens` 会累计所有收到的请求（含后续失败的），因此它的 token 总数可能略高。
    这里为了让 `.log` 与 `.requests.jsonl` 能逐位精确对账，统一只统计成功请求；受影响最大的只有
-   `conc-128-standard__baseline`（崩溃 run，300 提交 / 212 成功）。
+   `conc-128-crash-probe__baseline`（崩溃 run，300 提交 / 212 成功）。
    日志里 `Successful requests = 212` 已经体现了失败计数，但它与 `Total input tokens` 并非同源，
    单独拿这两个数相除无法还原 `random_input`。
 2. `Concurrency` 使用 `成功请求数 / Benchmark duration`（bench_serving 的吞吐定义），

@@ -7,6 +7,7 @@ import unittest
 from sglbench.models import Scenario
 from sglbench.parse import parse_bench_log
 from sglbench.runner import (
+    ExecEnv,
     apply_overrides,
     build_command,
     command_string,
@@ -46,22 +47,32 @@ class TestBuildCommand(unittest.TestCase):
         cmd = build_command(scenario, python="python3")
         opts = tokens(cmd)
         self.assertEqual(cmd[:3], ["python3", "-m", "sglang.bench_serving"])
+        # GLM 场景走 sglang-oai-chat backend（对齐生产调用形态）
         self.assertEqual(opts["backend"], "sglang-oai-chat")
-        self.assertEqual(opts["base-url"], "http://10.66.1.232:8081")
+        self.assertEqual(opts["base-url"], "http://10.66.3.32:8001")
         self.assertEqual(opts["max-concurrency"], "64")
         self.assertEqual(opts["num-prompts"], "200")
-        self.assertEqual(opts["random-input"], "4096")
-        self.assertEqual(opts["random-output"], "2048")
+        # 本集群 bench_serving 的随机长度参数名（上游 --random-input 不存在）
+        self.assertEqual(opts["random-input-len"], "4096")
+        self.assertEqual(opts["random-output-len"], "2048")
+        self.assertNotIn("random-input", opts)
+        self.assertNotIn("random-output", opts)
         self.assertEqual(opts["pd-separated"], "1")
         self.assertNotIn("host", opts)
 
     def test_single_stage_uses_host_port(self) -> None:
         scenario = BUILTIN_SCENARIOS["prefill-only"]
         opts = tokens(build_command(scenario, python="python3"))
-        self.assertEqual(opts["host"], "10.66.1.232")
+        self.assertEqual(opts["host"], "10.66.3.29")
         self.assertEqual(opts["port"], "8000")
         self.assertNotIn("base-url", opts)
         self.assertNotIn("pd-separated", opts)
+
+    def test_decode_only_targets_master_8200(self) -> None:
+        scenario = BUILTIN_SCENARIOS["decode-only-deepseek"]
+        opts = tokens(build_command(scenario, python="python3"))
+        self.assertEqual(opts["host"], "10.66.3.35")
+        self.assertEqual(opts["port"], "8200")
 
     def test_detail_flag_appended(self) -> None:
         cmd = build_command(BUILTIN_SCENARIOS["single-standard"], detail_path="/tmp/r.jsonl")
@@ -188,16 +199,56 @@ class TestIngest(unittest.TestCase):
         with temp_home() as paths:
             log_path, _ = write_log_bundle(
                 paths.home / "src",
-                "conc-128-standard__baseline",
+                "conc-128-crash-probe__baseline",
                 samples,
                 num_prompts=30,
                 max_concurrency=128,
                 error_lines=["ERROR: Prefill worker 3 crashed: torch.OutOfMemoryError: CUDA out of memory"],
             )
-            outcome = ingest_log(paths, log_path, get_scenario("conc-128-standard"))
+            outcome = ingest_log(paths, log_path, get_scenario("conc-128-crash-probe"))
             self.assertEqual(outcome.record.status, "partial")
             self.assertAlmostEqual(outcome.record.metrics["success_rate"], 21 / 30, places=5)
             self.assertTrue(any(i.kind == "oom" for i in outcome.record.issues))
+
+
+class TestExecEnv(unittest.TestCase):
+    def test_for_mode_rejects_unknown(self) -> None:
+        with self.assertRaises(ValueError):
+            ExecEnv.for_mode("nope")
+
+    def test_local_mode_is_not_remote(self) -> None:
+        env = ExecEnv.for_mode("local")
+        self.assertFalse(env.is_remote)
+        self.assertIsNone(env.python)
+        self.assertEqual(env.shell_wrap(["python3", "-V"]), ["python3", "-V"])
+
+    def test_docker_wrap(self) -> None:
+        env = ExecEnv.for_mode("docker")
+        cmd = build_command(BUILTIN_SCENARIOS["single-deepseek-standard"], python="/opt/conda/bin/python")
+        wrapped = env.shell_wrap(cmd)
+        self.assertEqual(wrapped[:5], ["sudo", "-n", "docker", "exec", "sglang-benchmark"])
+        self.assertEqual(wrapped[5:7], ["bash", "-lc"])
+        inner = wrapped[-1]
+        self.assertIn("sglang.bench_serving", inner)
+        self.assertIn("/opt/conda/bin/python", inner)
+
+    def test_kubectl_wrap(self) -> None:
+        env = ExecEnv.for_mode("kubectl")
+        wrapped = env.shell_wrap(["echo", "hi"])
+        self.assertEqual(wrapped[:6], ["kubectl", "-n", "metax-ai-pd", "exec", "pd-bench-client", "--"])
+        self.assertEqual(wrapped[6:8], ["bash", "-c"])
+
+    def test_docker_wrap_injects_env_exports(self) -> None:
+        env = ExecEnv.for_mode("docker")
+        wrapped = env.shell_wrap(["true"], env={"HF_HUB_OFFLINE": "1"})
+        inner = wrapped[-1]
+        self.assertIn("export HF_HUB_OFFLINE=1", inner)
+        self.assertIn("&&", inner)
+
+    def test_detail_container_path_and_fetch_path(self) -> None:
+        for mode, prefix in (("docker", "sglang-benchmark:"), ("kubectl", "pd-bench-client:")):
+            env = ExecEnv.for_mode(mode)
+            self.assertEqual(env.detail_container_path("run-1"), "/tmp/sglbench-run-1.jsonl")
 
 
 class TestHelpers(unittest.TestCase):

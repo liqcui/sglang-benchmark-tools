@@ -56,9 +56,20 @@ sglbench scenarios
 sglbench preflight --scenario single-standard
 
 # ③ 在集群上跑（先 dry-run 看命令，再真跑）
-sglbench run --scenario conc-64-standard --dry-run          # 打印可复制的 shell 片段
-sglbench run --scenario conc-64-standard --label v2.3.1     # 直接执行并归档
+sglbench run --scenario conc-64-deepseek --exec docker --dry-run   # 打印容器内执行命令
+sglbench run --scenario conc-64-deepseek --exec docker --label l2-off   # 直接执行并归档
 ```
+
+**执行通道 `--exec`**（bench_serving 必须跑在容器/pod 里，宿主 python3 没有 sglang）：
+
+| 通道 | 命令 | 适用 |
+|---|---|---|
+| `local`（默认） | 宿主直接跑 | 本机装有 sglang 的开发环境 |
+| `docker` | `sudo docker exec sglang-benchmark`（宿主 10.66.2.1） | DeepSeek 场景（容器里有 DS 模型+数据集） |
+| `kubectl` | `kubectl exec pd-bench-client`（namespace `metax-ai-pd`） | GLM 场景（GLM 模型只在 bench pod 里）；DS 也可 |
+
+容器内命令以 `bash -lc` 包装（自动注入 `HF_HUB_OFFLINE` 等环境变量）；每请求明细写到
+容器内 `/tmp`，跑完后自动 `docker cp` / `kubectl cp` 回本地归档。
 
 已经有历史日志（集群上 `nohup` 跑出来的）？不需要重跑：
 
@@ -87,22 +98,52 @@ sglbench report  --scenario single-standard --last 2 --sweep -o report.html
 
 ---
 
-## 4. 内置场景（与文档逐条对应）
+## 4. 内置场景：6 个标准场景 × 2 个模型（GLM / DeepSeek）
 
-| scenario key | 族 | 并发 | 请求数 | 输入/输出 | 速率 | 说明 |
-|---|---|---|---|---|---|---|
-| `single-standard` | single | 1 | 50 | 4096/2048 | 1.0 | 单并发日常基线 |
-| `single-deepseek-standard` | single | 1 | 50 | 4096/2048 | 1.0 | 同上，DeepSeek-V4-Flash |
-| `single-longctx` | long-context | 1 | 20 | 65536/8192 | 0.5 | 约 200K 上下文单并发基线 |
-| `conc-32-standard` | concurrency | 32 | 200 | 4096/2048 | 4.0 | Decode 满配并发 |
-| `conc-64-standard` | concurrency | 64 | 200 | 4096/2048 | 6.0 | Prefill 满配并发 |
-| `conc-128-standard` | concurrency | 128 | 300 | 4096/2048 | 8.0 | 极限承压（已知会打崩 Prefill） |
-| `conc-128-safe` | concurrency | 128 | 300 | 4096/2048 | 5.0 | 128 并发安全边界 |
-| `conc-128-deepseek-safe` | concurrency | 128 | 300 | 4096/2048 | 5.0 | DeepSeek 安全边界 |
-| `conc-256-standard` | concurrency | 256 | 300 | 4096/2048 | 16.0 | 超高并发极限 |
-| `conc-32-longctx` | long-context | 32 | 100 | 65536/8192 | 2.0 | 长上下文高并发压力 |
-| `prefill-only` | single-stage | 64 | 100 | 8192/128 | 2.0 | 绕过网关直连 Prefill :8000 |
-| `decode-only` | single-stage | 32 | 100 | 2048/2048 | 5.0 | 绕过网关直连 Decode :8000 |
+所有场景统一走 sglang router（`ROUTER`，`--pd-separated`），GLM 与 DeepSeek
+同链路、仅模型与 backend 不同：**GLM=`sglang-oai-chat`**（对齐生产调用形态）、
+**DeepSeek=`sglang`**。GLM 尚未部署到新集群（案例代码已就绪，部署后即可跑）；
+当前实际服务的是 DeepSeek-V4-Flash。
+
+| # | 场景类型 | GLM key | DeepSeek key | 并发 | 请求数 | 输入/输出 | 速率 |
+|---|---|---|---|---|---|---|---|
+| ① | 常规文本单并发（稳定性基线） | `single-standard` | `single-deepseek-standard` | 1 | 50 | 4096/2048 | 1.0 |
+| ② | 超长上下文单并发（200K 基线） | `single-longctx` | `single-longctx-deepseek` | 1 | 20 | 65536/8192 | 0.5 |
+| ③ | 低并发（Decode 满配） | `conc-32-standard` | `conc-32-deepseek` | 32 | 200 | 4096/2048 | 4.0 |
+| ④ | 中并发（Prefill 满配） | `conc-64-standard` | `conc-64-deepseek` | 64 | 200 | 4096/2048 | 6.0 |
+| ⑤ | 高并发极限（128 承压，安全档） | `conc-128-safe` | `conc-128-deepseek-safe` | 128 | 300 | 4096/2048 | **5.0** |
+| ⑥ | 多并发超长上下文压力 | `conc-32-longctx` | `conc-32-longctx-deepseek` | 32 | 100 | 65536/8192 | 2.0 |
+
+另有：
+
+| key | 用途 |
+|---|---|
+| `conc-128-crash-probe` (DeepSeek) | **崩溃边界复现**：128 并发 @ rate=8.0，预期失败（known-failure） |
+| `conc-256-standard` / `conc-256-deepseek` | 超高并发极限 @ rate=16.0 |
+| `conc-64-sharegpt-deepseek` | ShareGPT 512/128 @ rate=20（对齐 llm-d OPTIMIZATION.md 协议，1238 tok/s 基准对照） |
+| `prefill-only` / `prefill-only-deepseek` | 绕过 router 直连 Prefill leader `:8000`（单阶段瓶颈定位） |
+| `decode-only` / `decode-only-deepseek` | 直连 Decode modelserver `:8200`（单阶段瓶颈定位） |
+
+### 测试边界声明（实测，2026-10-02）
+
+| 边界 | 实测现象 | 场景取值 |
+|---|---|---|
+| **DeepSeek 128 并发 @ rate=8.0** | **prefill 崩溃 → pod 重启**（首次即崩） | 安全档 5.0（`conc-128-deepseek-safe`）；崩溃复现用 `conc-128-crash-probe` |
+| **256 并发 @ rate=32.0** | **decode 重启** | 标准档 16.0（`conc-256-*`） |
+| GLM 128/256 | 未部署、未实测 | 与 DeepSeek 同档保守取值，部署后需重新校准 |
+| chunked-prefill | 4096 最优（8192 时 TTFT 1.2s→15.4s 暴增，llm-d 实测） | 集群侧配置，非 bench 参数 |
+| 首轮压测偏低 | TileLang JIT 热身（首轮 470 vs 稳定 1238 tok/s） | 连续 2-3 轮取稳定值 |
+
+> 边界数字来自 llm-d 项目（`guides/pd-disaggregation/.../metax/`）的实测记录；
+> 单并发合格标准（100% 成功、TTFT/TPOT 平稳、零 KV 传输异常）已编码进各场景 SLA。
+
+### 现场常量（sglbench/scenarios.py 顶部，2026-10-02 核实）
+
+- `ROUTER = http://10.66.3.32:8001` —— 统一压测入口（hostNetwork）
+- `EPP_GATEWAY = http://10.233.106.77:8081` —— EPP 网关，**pod 网络**，仅集群内可达，当前只路由 DeepSeek（preflight 用）
+- `PREFILL_MASTER = 10.66.3.29:8000` / `DECODE_MASTER = 10.66.3.35:8200` —— **leader 会漂移**，跑单阶段场景前必须 `sglbench preflight` 核实
+- 模型/数据集路径均为**容器内路径**（`/workspace/data/...`、`/workspace/ShareGPT_...`），
+  压测在容器/pod 内执行 —— 宿主路径 `/data/...` 在这里不适用
 
 **场景 key 是稳定标识**：对比的前提是同一个 key。改参数会让历史 run 失去可比性，
 确需变更请**新增** key。现场参数（网关地址、模型路径、数据集路径）改
@@ -115,7 +156,7 @@ sglbench report  --scenario single-standard --last 2 --sweep -o report.html
       "key": "conc-64-standard",
       "name": "64 并发（现场参数覆盖）",
       "family": "concurrency",
-      "base_url": "http://10.66.1.232:8081",
+      "base_url": "http://10.66.3.32:8001",
       "model": "/workspace/data/GLM-5.1-W8A8",
       "tokenizer": "/workspace/data/GLM-5.1-W8A8",
       "num_prompts": 200, "max_concurrency": 64,
@@ -141,7 +182,7 @@ sglbench run --scenario conc-128-safe --set max_concurrency=96 --set request_rat
 |---|---|
 | `sglbench scenarios [list\|show KEY\|export]` | 场景目录；`show` 会连执行命令一起打印 |
 | `sglbench preflight --scenario KEY [--url ...]` | 连通性预检（流式 TTFT、`[DONE]` 完整性、HTTP 状态），结果入库 |
-| `sglbench run --scenario KEY [--label L] [--repeat N] [--dry-run]` | 执行压测并归档入库 |
+| `sglbench run --scenario KEY [--label L] [--repeat N] [--dry-run] [--exec local\|docker\|kubectl]` | 执行压测并归档入库（`--exec` 选择容器/pod 执行通道） |
 | `sglbench ingest PATH... [--infer]` | 导入已有日志（幂等：内容相同则跳过） |
 | `sglbench list [--scenario K] [--family F] [--status S]` | 历史 run 列表 |
 | `sglbench show RUN` | 单个 run 的指标、分布、门禁、异常日志 |
@@ -317,7 +358,7 @@ examples/logs/       # 示例压测日志 + 每请求明细
 
 ```bash
 python -m unittest discover -s tests -t .     # 或 python -m pytest tests
-python tools/make_examples.py                 # 重新生成示例数据（幂等）
+python tools/make_examples.py                 # 重新生成示例数据（幂等，需 numpy）
 python tools/chart_gallery.py                 # 目视校验全部图表
 ```
 

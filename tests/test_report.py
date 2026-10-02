@@ -54,7 +54,7 @@ METRICS_B = {**METRICS_A, "mean_ttft_ms": 92.8, "p99_ttft_ms": 124.0, "output_to
 
 
 def seed(store: Store) -> None:
-    store.upsert_scenarios([get_scenario("single-standard"), get_scenario("conc-128-standard")])
+    store.upsert_scenarios([get_scenario("single-standard"), get_scenario("conc-128-crash-probe")])
     store.save_run(
         RunRecord(
             run_id="base",
@@ -86,7 +86,7 @@ def seed(store: Store) -> None:
     store.save_run(
         RunRecord(
             run_id="crash",
-            scenario_key="conc-128-standard",
+            scenario_key="conc-128-crash-probe",
             label="crash-run",
             status="partial",
             started_at=utcnow(),

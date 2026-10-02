@@ -31,7 +31,7 @@ def prepare_logs(paths) -> Path:
     write_log_bundle(logs, "single-standard__candidate", synthesize_samples(40, ttft_mean=95.0, seed=3), num_prompts=40, max_concurrency=1)
     write_log_bundle(
         logs,
-        "conc-128-standard__crash",
+        "conc-128-crash-probe__crash",
         synthesize_samples(40, failures=12, seed=4),
         num_prompts=40,
         max_concurrency=128,
@@ -94,13 +94,13 @@ class TestCli(unittest.TestCase):
 
             code, out, _ = run_cli("list", "--home", str(paths.home))
             self.assertEqual(code, 0)
-            for key in ("single-standard", "conc-128-standard", "conc-64-standard"):
+            for key in ("single-standard", "conc-128-crash-probe", "conc-64-standard"):
                 self.assertIn(key, out)
 
             code, out, _ = run_cli("list", "--home", str(paths.home), "--json")
             runs = json.loads(out)
             self.assertEqual(len(runs), 4)
-            crash = next(r for r in runs if r["scenario_key"] == "conc-128-standard")
+            crash = next(r for r in runs if r["scenario_key"] == "conc-128-crash-probe")
             self.assertEqual(crash["status"], "partial")
 
             code, out, _ = run_cli("show", "--home", str(paths.home), crash["run_id"])
@@ -140,7 +140,7 @@ class TestCli(unittest.TestCase):
             # 崩溃场景的门禁应该失败
             code, out, _ = run_cli(
                 "compare", "--home", str(paths.home),
-                "conc-128-standard:1", "single-standard:1", "--fail-on-gate",
+                "conc-128-crash-probe:1", "single-standard:1", "--fail-on-gate",
             )
             self.assertEqual(code, 1)
 
@@ -172,7 +172,7 @@ class TestCli(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("PASS", out)
 
-            code, out, _ = run_cli("gate", "--home", str(paths.home), "--scenario", "conc-128-standard")
+            code, out, _ = run_cli("gate", "--home", str(paths.home), "--scenario", "conc-128-crash-probe")
             self.assertEqual(code, 1)
             self.assertIn("FAIL", out)
 

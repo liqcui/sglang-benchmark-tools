@@ -200,15 +200,19 @@ def check_endpoint(
 
 
 def targets_for(scenario: Scenario) -> list[tuple[str, str]]:
-    """返回该场景相关的 (标签, 端点) 列表。PD 场景额外探测 Prefill/Decode 直连。"""
+    """返回该场景相关的 (标签, 端点) 列表。PD 场景额外探测 Prefill/Decode leader 直连。
+
+    注意：prefill/decode leader 会漂移，压测前必须用 preflight 核实
+    ``scenarios.PREFILL_MASTER`` / ``DECODE_MASTER`` 是否仍是当前 leader。
+    """
     out: list[tuple[str, str]] = []
     if scenario.base_url:
         out.append((f"gateway({scenario.key})", scenario.base_url))
         if scenario.pd_separated:
-            from .scenarios import DECODE_NODE, PREFILL_NODE
+            from .scenarios import DECODE_MASTER, PREFILL_MASTER
 
-            out.append(("prefill-node", f"http://{PREFILL_NODE[0]}:{PREFILL_NODE[1]}"))
-            out.append(("decode-node", f"http://{DECODE_NODE[0]}:{DECODE_NODE[1]}"))
+            out.append(("prefill-node", f"http://{PREFILL_MASTER[0]}:{PREFILL_MASTER[1]}"))
+            out.append(("decode-node", f"http://{DECODE_MASTER[0]}:{DECODE_MASTER[1]}"))
     elif scenario.host and scenario.port:
         out.append((scenario.key, f"http://{scenario.host}:{scenario.port}"))
     return out
