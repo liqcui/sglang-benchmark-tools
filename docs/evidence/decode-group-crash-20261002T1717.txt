@@ -1,0 +1,21 @@
+# Decode 组崩溃证据（2026-10-02 17:17:42，用户终端实拍）
+# 触发：conc-128-deepseek-safe @ rate=4.0 探针启动 73 秒后
+# 机制：dp-attention MLP-sync all_gather (Gloo) 因 peer 10.66.3.34 断连失败
+#       → scheduler_0 崩溃 (exit -3) → SIGQUIT 清理 → decode.sh 主进程 Killed
+#       → LWS 整组 4 个 decode pod 重建（17:17:45）
+#
+# MCCL WARN socketProgressOpt: Call to recv from 10.66.3.34<56841> failed : Connection reset by peer
+# [DP0 TP1 EP1] Scheduler hit an exception:
+#   sglang/srt/disaggregation/decode.py:1620 event_loop_overlap_disagg_decode
+#   → decode.py:1682 get_next_disagg_decode_batch_to_run
+#   → scheduler_dp_attn_mixin.py:257 maybe_prepare_mlp_sync_batch
+#   → scheduler_dp_attn_mixin.py:202 prepare_mlp_sync_batch_raw
+#   → scheduler_dp_attn_mixin.py:81 all_gather
+#   → torch.distributed.all_gather_into_tensor → work.wait()
+# RuntimeError: [gloo/transport/tcp/pair.cc:547] Connection closed by peer [10.66.3.34]:15268
+#
+# Subprocess scheduler_0 (pid=137953) crashed with exit code -3. Triggering SIGQUIT for cleanup...
+# decode.sh: line 181: 136916 Killed  python3 -m sglang.launch_server "${args[@]}"
+#
+# 结论：任一 decode rank 的 MCCL/Gloo 通信中断 → 跨 DP 的 all_gather 集体挂掉
+#       → 全组连锁重建。2026-10-02 共发生 2 次（17:04 静默版 / 17:17 有栈版）。

@@ -1,0 +1,45 @@
+--- a/sglang/srt/managers/schedule_batch.py	2026-10-02 21:37:57.528668017 +0800
++++ b/sglang/srt/managers/schedule_batch.py	2026-10-02 21:37:57.528668017 +0800
+@@ -2189,6 +2189,7 @@
+             )
+ 
+         retracted_reqs = []
++        reqs_to_abort: List[Req] = []  # [BH-patch2] 提前初始化
+         first_iter = True
+         while first_iter or (
+             not self.check_decode_mem(selected_indices=sorted_indices)
+@@ -2214,11 +2215,21 @@
+             first_iter = False
+             idx = sorted_indices.pop()
+             req = self.reqs[idx]
+-            retracted_reqs.append(req)
+-            # release memory and don't insert into the tree because we need the space instantly
+-            self.release_req(idx, len(sorted_indices), server_args)
++            if not getattr(server_args, "disaggregation_decode_enable_offload_kvcache", False):
++                # [BH-patch2] 混合 SWA 池无 get_cpu_copy -> retract 后 resume 必崩
++                # (AttributeError: kv_cache_cpu)。无 offload 能力时直接 abort,
++                # 客户端收 500, 服务不崩 (优雅降级)。
++                req.to_finish = FINISH_ABORT(
++                    "Retracted due to KV cache pressure without CPU offload support; aborting.",
++                    status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
++                )
++                reqs_to_abort.append(req)
++                self.release_req(idx, len(sorted_indices), server_args)
++            else:
++                retracted_reqs.append(req)
++                # release memory and don't insert into the tree because we need the space instantly
++                self.release_req(idx, len(sorted_indices), server_args)
+ 
+-        reqs_to_abort: List[Req] = []
+         if len(sorted_indices) <= 1 and not self.check_decode_mem(
+             selected_indices=sorted_indices
+         ):
+@@ -2259,7 +2270,7 @@
+         if self.hisparse_coordinator is not None and not req.finished():
+             self.hisparse_coordinator.retract_req(req)
+ 
+-        if server_args.disaggregation_mode == "decode":
++        if server_args.disaggregation_mode == "decode" and server_args.disaggregation_decode_enable_offload_kvcache:
+             req.offload_kv_cache(
+                 self.req_to_token_pool, self.token_to_kv_pool_allocator
+             )

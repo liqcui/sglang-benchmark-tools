@@ -1,0 +1,40 @@
+[pod/decode-dsv4rc3-0/modelserver] [2026-10-02 17:35:47] INFO:     10.66.3.36:0 - "GET /metrics HTTP/1.1" 200 OK
+[pod/decode-dsv4rc3-0/modelserver] [2026-10-02 17:35:47] INFO:     10.66.3.36:0 - "GET /metrics HTTP/1.1" 200 OK
+[pod/decode-dsv4rc3-0/modelserver] [2026-10-02 17:35:47] INFO:     10.66.3.36:0 - "GET /metrics HTTP/1.1" 200 OK
+[pod/decode-dsv4rc3-0-3/modelserver] [2026-10-02 17:35:47 DP3 TP6 EP6] Scheduler hit an exception: Traceback (most recent call last):
+[pod/decode-dsv4rc3-0-3/modelserver]   File "/opt/conda/lib/python3.12/site-packages/sglang/srt/managers/scheduler.py", line 4066, in run_scheduler_process
+[pod/decode-dsv4rc3-0-3/modelserver]     scheduler.run_event_loop()
+[pod/decode-dsv4rc3-0-3/modelserver]   File "/opt/conda/lib/python3.12/site-packages/sglang/srt/managers/scheduler.py", line 1558, in run_event_loop
+[pod/decode-dsv4rc3-0-3/modelserver]     dispatch_event_loop(self)
+[pod/decode-dsv4rc3-0-3/modelserver]   File "/opt/conda/lib/python3.12/site-packages/sglang/srt/managers/scheduler.py", line 3949, in dispatch_event_loop
+[pod/decode-dsv4rc3-0-3/modelserver]     scheduler.event_loop_overlap_disagg_decode()
+[pod/decode-dsv4rc3-0-3/modelserver]   File "/opt/conda/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+[pod/decode-dsv4rc3-0-3/modelserver]     return func(*args, **kwargs)
+[pod/decode-dsv4rc3-0-3/modelserver]            ^^^^^^^^^^^^^^^^^^^^^
+[pod/decode-dsv4rc3-0-3/modelserver]   File "/opt/conda/lib/python3.12/site-packages/sglang/srt/disaggregation/decode.py", line 1620, in event_loop_overlap_disagg_decode
+[pod/decode-dsv4rc3-0-3/modelserver]     batch = self.get_next_disagg_decode_batch_to_run()
+[pod/decode-dsv4rc3-0-3/modelserver]             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[pod/decode-dsv4rc3-0-3/modelserver]   File "/opt/conda/lib/python3.12/site-packages/sglang/srt/disaggregation/decode.py", line 1679, in get_next_disagg_decode_batch_to_run
+[pod/decode-dsv4rc3-0-3/modelserver]     self.running_batch = self.update_running_batch(self.running_batch)
+[pod/decode-dsv4rc3-0-3/modelserver]                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[pod/decode-dsv4rc3-0-3/modelserver]   File "/opt/conda/lib/python3.12/site-packages/sglang/srt/managers/scheduler.py", line 2947, in update_running_batch
+[pod/decode-dsv4rc3-0-3/modelserver]     retracted_reqs, new_token_ratio, reqs_to_abort = batch.retract_decode(
+[pod/decode-dsv4rc3-0-3/modelserver]                                                      ^^^^^^^^^^^^^^^^^^^^^
+--
+[pod/decode-dsv4rc3-0-3/modelserver]     raise NotImplementedError()
+[pod/decode-dsv4rc3-0-3/modelserver] NotImplementedError
+[pod/decode-dsv4rc3-0-3/modelserver] 
+[pod/decode-dsv4rc3-0-3/modelserver] [2026-10-02 17:35:47 DP3 TP7 EP7] Scheduler hit an exception: Traceback (most recent call last):
+[pod/decode-dsv4rc3-0-3/modelserver]   File "/opt/conda/lib/python3.12/site-packages/sglang/srt/managers/scheduler.py", line 4066, in run_scheduler_process
+[pod/decode-dsv4rc3-0-3/modelserver]     scheduler.run_event_loop()
+[pod/decode-dsv4rc3-0-3/modelserver]   File "/opt/conda/lib/python3.12/site-packages/sglang/srt/managers/scheduler.py", line 1558, in run_event_loop
+[pod/decode-dsv4rc3-0-3/modelserver]     dispatch_event_loop(self)
+[pod/decode-dsv4rc3-0-3/modelserver]   File "/opt/conda/lib/python3.12/site-packages/sglang/srt/managers/scheduler.py", line 3949, in dispatch_event_loop
+[pod/decode-dsv4rc3-0-3/modelserver]     scheduler.event_loop_overlap_disagg_decode()
+[pod/decode-dsv4rc3-0-3/modelserver]   File "/opt/conda/lib/python3.12/site-packages/torch/utils/_contextlib.py", line 124, in decorate_context
+[pod/decode-dsv4rc3-0-3/modelserver]     return func(*args, **kwargs)
+[pod/decode-dsv4rc3-0-3/modelserver]            ^^^^^^^^^^^^^^^^^^^^^
+[pod/decode-dsv4rc3-0-3/modelserver]   File "/opt/conda/lib/python3.12/site-packages/sglang/srt/disaggregation/decode.py", line 1620, in event_loop_overlap_disagg_decode
+[pod/decode-dsv4rc3-0-3/modelserver]     batch = self.get_next_disagg_decode_batch_to_run()
+[pod/decode-dsv4rc3-0-3/modelserver]             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+[pod/decode-dsv4rc3-0-3/modelserver]   File "/opt/conda/lib/python3.12/site-packages/sglang/srt/disaggregation/decode.py", line 1679, in get_next_disagg_decode_batch_to_run

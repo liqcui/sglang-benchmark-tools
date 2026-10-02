@@ -124,18 +124,29 @@ sglbench report  --scenario single-standard --last 2 --sweep -o report.html
 | `prefill-only` / `prefill-only-deepseek` | 绕过 router 直连 Prefill leader `:8000`（单阶段瓶颈定位） |
 | `decode-only` / `decode-only-deepseek` | 直连 Decode modelserver `:8200`（单阶段瓶颈定位） |
 
-### 测试边界声明（实测，2026-10-02）
+### 测试边界声明（实测，2026-10-02；含重大修复）
 
-| 边界 | 实测现象 | 场景取值 |
+**当日排查发现并修复了导致所有高并发/长上下文场景失败的 SGLang 双缺陷**
+（retract→offload NotImplementedError + resume→load_kv_cache AttributeError；"Gloo 断连"均为次级现象）——
+详见 `docs/FAILURES-2026-10-02.md` 与镜像补丁 `docs/patches/`。**修复后边界从"崩溃红线"变为"性能曲线"**：
+
+| 场景 | 修复前 | 修复后（实测） |
 |---|---|---|
-| **DeepSeek 128 并发 @ rate=8.0** | **prefill 崩溃 → pod 重启**（首次即崩） | 安全档 5.0（`conc-128-deepseek-safe`）；崩溃复现用 `conc-128-crash-probe` |
-| **256 并发 @ rate=32.0** | **decode 重启** | 标准档 16.0（`conc-256-*`） |
-| GLM 128/256 | 未部署、未实测 | 与 DeepSeek 同档保守取值，部署后需重新校准 |
-| chunked-prefill | 4096 最优（8192 时 TTFT 1.2s→15.4s 暴增，llm-d 实测） | 集群侧配置，非 bench 参数 |
-| 首轮压测偏低 | TileLang JIT 热身（首轮 470 vs 稳定 1238 tok/s） | 连续 2-3 轮取稳定值 |
+| **128 并发 @ rate=5.0**（300 请求） | ❌ 必崩（decode 组全组重建，4 次复现） | ✅ **300/300 成功，2050 tok/s**；TTFT 12.2s、TPOT 26.7ms、p99 TPOT 43ms；268 次 retract 压力事件全部优雅降级（swa 池 17 次触顶，0 客户端错误） |
+| 64 并发 @ rate=6.0 | ✅ 1747 tok/s（100% 成功） | ✅ 同前（舒适生产水位） |
+| 32 并发 @ rate=4.0 | ✅ 1078 tok/s | ✅ 同前 |
+| 65K 长上下文 × 32/16 并发 | ❌ 崩（full 池打满） | 修复后重测中（见下） |
+| 256 并发 @ rate=32.0 | ❌ decode 重启（修复前观测） | 待复测 |
 
-> 边界数字来自 llm-d 项目（`guides/pd-disaggregation/.../metax/`）的实测记录；
-> 单并发合格标准（100% 成功、TTFT/TPOT 平稳、零 KV 传输异常）已编码进各场景 SLA。
+**容量模型（决定性能水位，修复后仍成立）**：
+- swa 池 = 20.3K tokens/rank（`swa-full-tokens-ratio=0.1` 为实测最优；r=0.4 会使 full 池 -70%）
+- 4096/2048 负载每请求 ~805 swa tokens → 频繁 retract 的并发线 ≈ 96；**生产建议 ≤96（64 舒适）**
+- 65K 长上下文每请求吃 ~65K full tokens（full 池 202K/rank → ~3 请求/rank 为绝对上限）
+
+其余：
+- GLM 128/256：未部署、未实测，与 DeepSeek 同档保守取值
+- chunked-prefill 4096（8192 时 TTFT 暴增，llm-d 实测）；首轮偏低 = TileLang JIT 热身（2-3 轮取稳定值）
+- 单并发合格标准（100% 成功、TTFT/TPOT 平稳、零 KV 传输异常）已编码进各场景 SLA
 
 ### 现场常量（sglbench/scenarios.py 顶部，2026-10-02 核实）
 
