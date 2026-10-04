@@ -462,7 +462,7 @@ FAMILIES: dict[str, str] = {
     "concurrency": "多并发梯度承压",
     "long-context": "超长上下文",
     "single-stage": "单阶段独立压测",
-    "hicache": "HiCache L2 专项（稳定边界 / 多轮对话）",
+    "hicache": "HiCache 专项（L2 稳定边界 / L2+L3 多轮对话）",
     "custom": "自定义",
 }
 
