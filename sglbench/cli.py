@@ -211,6 +211,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             timeout=timeout,
             overrides=None,
             exec_env=exec_env,
+            env_file=getattr(args, "env_file", None),
             on_line=None if args.quiet else (lambda line: _eprint(f"  | {line}") if args.verbose else None),
         )
         outcomes.append(outcome)
@@ -874,6 +875,58 @@ def cmd_db(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------------- #
+# multiturn（HiCache 专项多轮对话基准）
+# --------------------------------------------------------------------------- #
+
+
+def cmd_multiturn(args: argparse.Namespace) -> int:
+    from .multiturn import archive_multiturn, run_multiturn
+
+    paths = _paths(args)
+    scenario = _scenario(args, args.scenario)
+    store = None if args.no_store else Store(paths.db)
+
+    url = args.url or scenario.endpoint
+    clients = args.clients or scenario.num_prompts
+    rounds = args.rounds or 10
+    request_length = args.request_length or scenario.random_input
+    output_length = args.output_length or scenario.random_output
+    request_rate = args.request_rate if args.request_rate is not None else scenario.request_rate
+
+    _eprint(
+        f"multiturn: {scenario.key} | clients={clients} rounds={rounds} "
+        f"req_len={request_length} out_len={output_length} rate={request_rate} url={url}"
+    )
+    result = run_multiturn(
+        url=url,
+        model=scenario.model,
+        clients=clients,
+        rounds=rounds,
+        request_length=request_length,
+        output_length=output_length,
+        request_rate=request_rate,
+        label=args.label or scenario.key,
+        notes=args.notes or "",
+        scenario_key=scenario.key,
+        timeout_s=args.timeout_s,
+        env_file=getattr(args, "env_file", None),
+    )
+    if store:
+        archive_multiturn(paths, result, store=store, env_file=getattr(args, "env_file", None))
+        store.close()
+
+    ok = sum(1 for t in result.turns if t.ok)
+    print(f"run_id : {result.run_id}")
+    print(f"状态   : {result.status}（{ok}/{len(result.turns)} 成功）")
+    for key in sorted(result.metrics):
+        if key.endswith(("_ttft_ms", "_cache_hit_rate")) and not key.startswith("total"):
+            print(f"  {key}: {result.metrics[key]}")
+    if args.json:
+        print(json.dumps({"run_id": result.run_id, "metrics": result.metrics}, ensure_ascii=False))
+    return EXIT_OK if result.status == "ok" else EXIT_FAIL
+
+
+# --------------------------------------------------------------------------- #
 # 解析器
 # --------------------------------------------------------------------------- #
 
@@ -942,7 +995,26 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-store", action="store_true")
     p.add_argument("--fail-on-bad", action="store_true", help="有非 ok 的 run 时返回非零（CI 用）")
     p.add_argument("--verbose", action="store_true", help="实时回显压测输出")
+    p.add_argument("--env-file", help="部署环境元数据 JSON（覆盖默认/自动探测；记入 run_environments 表）")
     p.set_defaults(func=cmd_run)
+
+    # multiturn（HiCache 专项多轮对话基准）
+    p = sub.add_parser("multiturn", help="HiCache 多轮对话基准（N 客户端 × R 轮，逐轮 TTFT/cache-hit）")
+    _add_common(p)
+    p.add_argument("--scenario", required=True, help="场景 key（hicache-multiturn-*）")
+    p.add_argument("--url", help="入口 URL（默认取场景 base_url/endpoint）")
+    p.add_argument("--clients", type=int, help="客户端数（默认取场景 num_prompts）")
+    p.add_argument("--rounds", type=int, default=10, help="每客户端轮数（默认 10）")
+    p.add_argument("--request-length", type=int, help="单轮基础请求长度（tokens 估算，默认取场景 random_input）")
+    p.add_argument("--output-length", type=int, help="单轮输出长度（默认取场景 random_output）")
+    p.add_argument("--request-rate", type=float, help="每客户端请求速率（默认取场景 request_rate；0=不限速）")
+    p.add_argument("--timeout-s", type=float, default=600.0, help="单请求超时秒数")
+    p.add_argument("--label", help="run 标签（默认场景 key）")
+    p.add_argument("--notes")
+    p.add_argument("--env-file", help="部署环境元数据 JSON")
+    p.add_argument("--no-store", action="store_true")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_multiturn)
 
     # ingest
     p = sub.add_parser("ingest", help="导入已有日志")

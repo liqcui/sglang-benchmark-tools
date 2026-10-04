@@ -213,7 +213,7 @@ class TestExport(unittest.TestCase):
             store.upsert_scenarios(BUILTIN_SCENARIOS.values())
             store.save_run(make_run("r1"))
             parquet = store.export(paths.exports_dir / "pq", fmt="parquet")
-            self.assertEqual(len(parquet), 5)
+            self.assertEqual(len(parquet), 6)  # runs/metrics/request_samples/scenarios/run_environments/v_run_metrics
             self.assertTrue(all(p.exists() and p.stat().st_size > 0 for p in parquet))
             csv = store.export(paths.exports_dir / "csv", fmt="csv")
             self.assertTrue(any(p.suffix == ".csv" for p in csv))

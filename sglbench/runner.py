@@ -28,6 +28,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
+from .env import capture_env
 from .models import Issue, RunRecord, Sample, Scenario
 from .parse import ParsedLog, default_requests_path, load_samples, parse_bench_log
 from .util import (
@@ -647,6 +648,7 @@ def run_scenario(
     on_line: Callable[[str], None] | None = None,
     log_path: str | Path | None = None,
     exec_env: ExecEnv | None = None,
+    env_file: str | Path | None = None,
 ) -> RunOutcome:
     """执行一次场景压测并落盘、入库前的完整采集。
 
@@ -733,6 +735,11 @@ def run_scenario(
             "content_sha256": sha256_text(exec_result.log_text),
         },
     )
+    # 部署环境元数据（kubectl 自动探测 + env-file 覆盖）—— 供 run_environments 表与对比分析
+    try:
+        meta["deployment_env"] = capture_env(env_file).to_dict()
+    except Exception:  # pragma: no cover - 环境探测失败不阻断压测
+        meta["deployment_env"] = {"deployment": "", "error": "capture failed"}
 
     record = build_record(
         run_id=rid,

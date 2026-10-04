@@ -102,6 +102,43 @@ _DDL: tuple[str, ...] = (
     )
     """,
     """
+    CREATE TABLE IF NOT EXISTS run_environments (
+        run_id                  VARCHAR PRIMARY KEY,
+        cluster                 VARCHAR,
+        namespace               VARCHAR,
+        deployment              VARCHAR,
+        prefill_nodes           INTEGER,
+        decode_nodes            INTEGER,
+        gpu_per_node            INTEGER,
+        prefill_tp              INTEGER,
+        prefill_dp              INTEGER,
+        prefill_pp              INTEGER,
+        decode_tp               INTEGER,
+        decode_dp               INTEGER,
+        decode_pp               INTEGER,
+        prefill_image           VARCHAR,
+        decode_image            VARCHAR,
+        router_image            VARCHAR,
+        launch_mode             VARCHAR,
+        hicache_enabled         BOOLEAN,
+        hicache_io_backend      VARCHAR,
+        hicache_ratio           DOUBLE,
+        hicache_mem_layout      VARCHAR,
+        hicache_storage_backend VARCHAR,
+        hicache_write_policy    VARCHAR,
+        swa_full_tokens_ratio   DOUBLE,
+        context_length          INTEGER,
+        chunked_prefill_size    INTEGER,
+        eplb_enabled            BOOLEAN,
+        eplb_file               VARCHAR,
+        maca_version            VARCHAR,
+        driver_version          VARCHAR,
+        engine_version          VARCHAR,
+        notes                   VARCHAR,
+        env_json                VARCHAR
+    )
+    """,
+    """
     CREATE TABLE IF NOT EXISTS preflight_checks (
         check_id     VARCHAR PRIMARY KEY,
         checked_at   TIMESTAMP,
@@ -332,6 +369,8 @@ class Store:
                 "INSERT INTO metrics (run_id, metric_key, value) VALUES (?, ?, ?)",
                 [(run.run_id, k, float(v)) for k, v in run.metrics.items()],
             )
+        self.save_environment(run, commit=False)
+
         if run.samples:
             rows = []
             for seq, sample in enumerate(run.samples):
@@ -360,9 +399,84 @@ class Store:
             )
         return run.run_id
 
+    # ---- 部署环境 ----
+    def save_environment(self, run: "RunRecord", commit: bool = True) -> None:
+        """把 run.meta['deployment_env'] 结构化落到 run_environments 表。
+
+        无环境信息时跳过（保持旧数据兼容）。env_json 保留完整原始 JSON。
+        """
+        env = (run.meta or {}).get("deployment_env")
+        if not env:
+            return
+        if not isinstance(env, dict):
+            try:
+                env = json.loads(env)
+            except (TypeError, json.JSONDecodeError):
+                return
+        row = {
+            "run_id": run.run_id,
+            "env_json": json.dumps(env, ensure_ascii=False, default=str),
+        }
+        for key in (
+            "cluster", "namespace", "deployment",
+            "prefill_nodes", "decode_nodes", "gpu_per_node",
+            "prefill_tp", "prefill_dp", "prefill_pp",
+            "decode_tp", "decode_dp", "decode_pp",
+            "prefill_image", "decode_image", "router_image",
+            "launch_mode", "hicache_io_backend", "hicache_mem_layout",
+            "hicache_storage_backend", "hicache_write_policy", "eplb_file",
+            "maca_version", "driver_version", "engine_version", "notes",
+        ):
+            row[key] = env.get(key)
+        # 数值/布尔列类型收敛
+        def _num(v):
+            try:
+                return None if v in (None, "") else float(v)
+            except (TypeError, ValueError):
+                return None
+
+        def _int(v):
+            f = _num(v)
+            return None if f is None else int(f)
+
+        def _bool(v):
+            if isinstance(v, bool):
+                return v
+            if v in (None, ""):
+                return None
+            return str(v).lower() in ("1", "true", "yes", "on")
+
+        for key in ("prefill_nodes", "decode_nodes", "gpu_per_node",
+                    "prefill_tp", "prefill_dp", "prefill_pp",
+                    "decode_tp", "decode_dp", "decode_pp",
+                    "context_length", "chunked_prefill_size"):
+            row[key] = _int(env.get(key))
+        for key in ("hicache_ratio", "swa_full_tokens_ratio"):
+            row[key] = _num(env.get(key))
+        for key in ("hicache_enabled", "eplb_enabled"):
+            row[key] = _bool(env.get(key))
+
+        cols = ", ".join(row.keys())
+        marks = ", ".join("?" for _ in row)
+        self.con.execute(
+            f"INSERT OR REPLACE INTO run_environments ({cols}) VALUES ({marks})",
+            list(row.values()),
+        )
+        if commit:
+            self.con.execute("COMMIT")
+
+    def get_environment(self, run_id: str) -> dict[str, Any] | None:
+        row = self.con.execute(
+            "SELECT * FROM run_environments WHERE run_id = ?", [run_id]
+        ).fetchone()
+        if not row:
+            return None
+        cols = [d[0] for d in self.con.description]
+        return dict(zip(cols, row))
+
     def delete_run(self, run_id: str, commit: bool = True) -> bool:
         exists = self.has_run(run_id)
-        for table in ("metrics", "request_samples", "runs"):
+        for table in ("metrics", "request_samples", "run_environments", "runs"):
             self.con.execute(f"DELETE FROM {table} WHERE run_id = ?", [run_id])
         return exists
 
@@ -604,7 +718,7 @@ class Store:
         """把核心表导出成文件，便于长期归档或丢进 BI 工具。"""
         out = Path(out_dir)
         out.mkdir(parents=True, exist_ok=True)
-        tables = ("runs", "metrics", "request_samples", "scenarios", "v_run_metrics")
+        tables = ("runs", "metrics", "request_samples", "scenarios", "run_environments", "v_run_metrics")
         written: list[Path] = []
         fmt = fmt.lower()
         if fmt not in ("parquet", "csv", "json"):

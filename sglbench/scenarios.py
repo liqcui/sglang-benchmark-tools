@@ -340,6 +340,73 @@ def _catalog() -> dict[str, Scenario]:
             tags=["diagnostic"],
         )
     )
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # HiCache L2 稳定边界场景（2026-10-04 实测边界: 输入 token 速率 ≤~12K tok/s
+    #   稳定, ≥~20K 必崩 MACA xnack）。mini-l2-* 全部取 ≤8K tok/s 留足余量。
+    #   非 HiCache 与 HiCache 部署跑同一批 key 即可对比（label 区分 l2-off/l2-on）。
+    # ═══════════════════════════════════════════════════════════════════════════
+    items.append(
+        _deepseek(
+            "mini-l2-32c", "mini-l2: 32 并发·稳定边界（DeepSeek）", "hicache",
+            "HiCache 稳定边界基准：32c @ rate 3.0 = ~8K input tok/s（稳定区下沿留余量）。"
+            "用于 l2-off/l2-on 同 key 对比。",
+            num_prompts=200, max_concurrency=32, random_input=4096, random_output=2048,
+            request_rate=3.0,
+            sla=_sla(max_p99_ttft_ms=8000.0, max_p99_tpot_ms=120.0),
+            tags=["hicache", "l2", "mini-l2", "stable-boundary"],
+        )
+    )
+    items.append(
+        _deepseek(
+            "mini-l2-64c", "mini-l2: 64 并发·稳定边界（DeepSeek）", "hicache",
+            "HiCache 稳定边界基准：64c @ rate 2.0 = ~8K input tok/s。",
+            num_prompts=200, max_concurrency=64, random_input=4096, random_output=2048,
+            request_rate=2.0,
+            sla=_sla(max_p99_ttft_ms=8000.0, max_p99_tpot_ms=120.0),
+            tags=["hicache", "l2", "mini-l2", "stable-boundary"],
+        )
+    )
+    items.append(
+        _deepseek(
+            "mini-l2-128c", "mini-l2: 128 并发·稳定边界（DeepSeek）", "hicache",
+            "HiCache 稳定边界基准：128c @ rate 1.0 = ~4K input tok/s（远低于稳定线）。",
+            num_prompts=300, max_concurrency=128, random_input=4096, random_output=2048,
+            request_rate=1.0,
+            sla=_sla(max_p99_ttft_ms=15000.0, max_p99_tpot_ms=120.0),
+            tags=["hicache", "l2", "mini-l2", "stable-boundary"],
+        )
+    )
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # HiCache 多轮对话专项（对齐 SGLang 官方 bench_multiturn 思路：N 客户端 × R 轮，
+    #   每轮输入 = 上一轮输入+输出 拼接 → 逐轮 TTFT / cache-hit 率）
+    #   执行方式: sglbench multiturn --scenario <key> [--clients N --rounds R ...]
+    #   num_prompts=客户端数, max_concurrency=并发客户端, random_input=单轮请求长度,
+    #   random_output=单轮输出长度, request_rate=每客户端速率。
+    # ═══════════════════════════════════════════════════════════════════════════
+    items.append(
+        _deepseek(
+            "hicache-multiturn-20x10", "HiCache 多轮对话 20 客户端×10 轮", "hicache",
+            "多轮对话专项（官方 bench_multiturn 参数: --num-clients 20 --num-rounds 10 "
+            "--request-length 2048 --output-length 16）。逐轮 TTFT/cache-hit 对比 l2-off/l2-on。",
+            num_prompts=20, max_concurrency=20, random_input=2048, random_output=16,
+            request_rate=2.0,
+            sla=_sla(max_p99_ttft_ms=15000.0),
+            tags=["hicache", "l2", "multiturn"],
+        )
+    )
+    items.append(
+        _deepseek(
+            "hicache-multiturn-80x10", "HiCache 多轮对话 80 客户端×10 轮", "hicache",
+            "多轮对话专项（官方 H800 基准参数: --num-clients 80 --num-rounds 10 "
+            "--request-length 2048 --output-length 1）。",
+            num_prompts=80, max_concurrency=80, random_input=2048, random_output=1,
+            request_rate=1.0,
+            sla=_sla(max_p99_ttft_ms=20000.0),
+            tags=["hicache", "l2", "multiturn"],
+        )
+    )
     return {s.key: s for s in items}
 
 
@@ -350,6 +417,7 @@ FAMILIES: dict[str, str] = {
     "concurrency": "多并发梯度承压",
     "long-context": "超长上下文",
     "single-stage": "单阶段独立压测",
+    "hicache": "HiCache L2 专项（稳定边界 / 多轮对话）",
     "custom": "自定义",
 }
 
