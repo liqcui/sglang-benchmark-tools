@@ -407,6 +407,51 @@ def _catalog() -> dict[str, Scenario]:
             tags=["hicache", "l2", "multiturn"],
         )
     )
+
+    # ── HiCache L3（Mooncake Store）多轮对话场景 ──
+    # 对应官方 4 配置矩阵的 "L1+L2+Mooncake" 与 "Populated Mooncake" 两档。
+    # ⚠ 需要 L3 部署（r4-hicache + mooncake master/store, storage_backend=mooncake,
+    #   envs/hicache-l3.json）；当前集群 L3 被 MACA xnack 崩溃阻塞（2026-09-27 定性），
+    #   场景先行就绪，驱动修复后即可运行与 L2 对比。
+    # 4 配置矩阵与场景/label 对应：
+    #   GPU only          → 非 HiCache 部署（dsv4rc3）+ 本场景, label l2-off
+    #   L1+L2             → hicache-l2 部署, label l2-on
+    #   L1+L2+L3          → hicache-l3 部署 + hicache-l3-multiturn-*, label l3-on
+    #   Populated L3      → hicache-l3 部署 + hicache-l3-populated-*, label l3-pre
+    items.append(
+        _deepseek(
+            "hicache-l3-multiturn-20x10", "HiCache L3 多轮对话 20 客户端×10 轮（Mooncake）", "hicache",
+            "L1+L2+L3 档（storage_backend=mooncake, prefetch=wait_complete）；"
+            "需要 L3 部署（envs/hicache-l3.json）。对齐官方 A10 参数。",
+            num_prompts=20, max_concurrency=20, random_input=2048, random_output=16,
+            request_rate=2.0,
+            sla=_sla(max_p99_ttft_ms=15000.0),
+            tags=["hicache", "l3", "multiturn", "mooncake"],
+        )
+    )
+    items.append(
+        _deepseek(
+            "hicache-l3-multiturn-80x10", "HiCache L3 多轮对话 80 客户端×10 轮（Mooncake）", "hicache",
+            "L1+L2+L3 档；对齐官方 H800 参数（output-length 1, 80 clients）。"
+            "需要 L3 部署（envs/hicache-l3.json）。",
+            num_prompts=80, max_concurrency=80, random_input=2048, random_output=1,
+            request_rate=1.0,
+            sla=_sla(max_p99_ttft_ms=20000.0),
+            tags=["hicache", "l3", "multiturn", "mooncake"],
+        )
+    )
+    items.append(
+        _deepseek(
+            "hicache-l3-populated-20x10", "HiCache L3 预填充多轮对话 20 客户端×10 轮（Populated）", "hicache",
+            "Populated Mooncake 档：与 l3-multiturn 相同参数，区别是测试前 KV 已预加载到 "
+            "Mooncake store（先跑一轮预热对话再正式跑，或由部署侧预填充）。"
+            "需要 L3 部署（envs/hicache-l3.json）。",
+            num_prompts=20, max_concurrency=20, random_input=2048, random_output=16,
+            request_rate=2.0,
+            sla=_sla(max_p99_ttft_ms=15000.0),
+            tags=["hicache", "l3", "multiturn", "mooncake", "populated"],
+        )
+    )
     return {s.key: s for s in items}
 
 
