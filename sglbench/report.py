@@ -30,6 +30,7 @@ from .svgchart import (
     histogram_chart,
     line_chart,
     percentile_range_chart,
+    trend_chart,
 )
 from .util import format_metric, iso, utcnow
 
@@ -929,8 +930,72 @@ def write_html(path: str | Path, content: str) -> Path:
     return p
 
 
+def build_trend_html(
+    series_by_metric: Mapping[str, Sequence[Any]],
+    *,
+    scenario_key: str,
+    title: str | None = None,
+) -> str:
+    """趋势时间线 HTML：每指标一张 trend_chart + 明细表。"""
+    page_title = title or f"指标趋势 · {scenario_key}"
+    sections: list[str] = []
+    for metric_key, points in series_by_metric.items():
+        if not points:
+            continue
+        times = sorted({str(p.started_at or "") for p in points})
+        if not times:
+            continue
+        labels = sorted({(p.label or p.run_id) for p in points})
+        ser = []
+        for i, lab in enumerate(labels):
+            by_time = {str(p.started_at or ""): p for p in points if (p.label or p.run_id) == lab}
+            ser.append(
+                {
+                    "name": lab,
+                    "color": color_for(i),
+                    "values": [(by_time[t].value if t in by_time else None) for t in times],
+                    "statuses": [
+                        (by_time[t].status if t in by_time and by_time[t].status else "ok")
+                        for t in times
+                    ],
+                }
+            )
+        chart = trend_chart(
+            [t[:16].replace("T", " ") for t in times], ser,
+            title=metric_key, ylabel=metric_key.split("_")[0], unit="",
+            width=1160, height=320,
+        )
+        rows = [
+            [t[:16].replace("T", " "), p.label or p.run_id,
+             ("-" if p.value is None else f"{p.value:,.3f}"), p.status]
+            for t in times
+            for p in points
+            if str(p.started_at or "") == t
+        ]
+        table = render_table(["时间(UTC)", "label", metric_key, "状态"], rows,
+                             ["left", "left", "right", "left"])
+        sections.append(
+            f'<div class="card">{chart}</div><div class="card"><pre>{_esc(table)}</pre></div>'
+        )
+    if not sections:
+        sections.append('<div class="card">该场景在此过滤条件下没有数据。</div>')
+    generated = iso(utcnow())
+    return (
+        f"""<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
+<title>{_esc(page_title)}</title>
+<style>body{{font-family:system-ui,-apple-system,sans-serif;margin:24px auto;max-width:1220px;padding:0 16px;color:#222;background:#fafafa}}
+h1{{font-size:22px}}.card{{background:#fff;border:1px solid #e3e3e3;border-radius:10px;padding:12px;margin:14px 0;overflow-x:auto}}
+pre{{font-size:12px;margin:0}}</style></head><body>
+<h1>{_esc(page_title)}</h1>
+<p style="color:#666;font-size:13px">实心点=ok；空心红圈=非 ok run（failed/partial）。生成: sglbench trend · {generated}</p>
+{''.join(sections)}
+</body></html>"""
+    )
+
+
 __all__ = [
     "build_html",
+    "build_trend_html",
     "display_width",
     "markdown_table",
     "pad",

@@ -29,6 +29,7 @@ from . import __version__
 from .analyze import (
     ComparisonReport,
     analyze_sweep,
+    analyze_trend,
     compare_runs,
     evaluate_gates,
 )
@@ -751,6 +752,39 @@ def cmd_sweep(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_trend(args: argparse.Namespace) -> int:
+    from dataclasses import asdict
+
+    paths = _paths(args)
+    with Store(paths.db) as store:
+        series = analyze_trend(
+            store,
+            args.scenario,
+            labels=args.label or None,
+            metrics=args.metric or None,
+            since=args.since,
+        )
+    if args.json:
+        payload = {metric: [asdict(p) for p in points] for metric, points in series.items()}
+        print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+    else:
+        for metric in series:
+            points = [p for p in series[metric] if p.value is not None]
+            print(f"── {metric}（{len(points)} 个点）")
+            for p in points:
+                mark = " " if p.status == "ok" else f" ⚠{p.status}"
+                print(f"  {str(p.started_at)[:16]}  {(p.label or p.run_id):<16} {p.value:>12,.3f}{mark}")
+    if args.html:
+        from .report import build_trend_html
+
+        html = build_trend_html(series, scenario_key=args.scenario)
+        out = Path(args.html)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(html, encoding="utf-8")
+        print(f"HTML: {out}")
+    return EXIT_OK
+
+
 def cmd_scenarios(args: argparse.Namespace) -> int:
     paths = _paths(args)
     catalog_map = _catalog(args)
@@ -1255,6 +1289,17 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--all-runs", action="store_true")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_sweep)
+
+    # trend
+    p = sub.add_parser("trend", help="指标趋势时间线（同一场景跨 run 回归跟踪）")
+    _add_common(p)
+    p.add_argument("--scenario", required=True)
+    p.add_argument("--label", action="append", default=[], help="只看这些 label（可重复）")
+    p.add_argument("--metric", action="append", default=[], help="指标（可重复; 默认 TTFT/总吞吐/成功率）")
+    p.add_argument("--since", help="起始日期（YYYY-MM-DD 前缀匹配 started_at）")
+    p.add_argument("--html", metavar="OUT", help="输出自包含 HTML")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_trend)
 
     # gate
     p = sub.add_parser("gate", help="按 SLA 判定通过/失败")

@@ -10,6 +10,7 @@ from sglbench.analyze import analyze_sweep, compare_runs
 from sglbench.models import RunRecord
 from sglbench.report import (
     build_html,
+    build_trend_html,
     display_width,
     markdown_table,
     pad,
@@ -336,6 +337,27 @@ class TestRoundHtml(unittest.TestCase):
                 with_distributions=False, resamples=200,
             )
         self.assertNotIn("逐轮 TTFT", build_html(report))
+
+
+class TestTrendHtml(unittest.TestCase):
+    def test_build_trend_html(self) -> None:
+        from sglbench.analyze import TrendPoint
+
+        series = {
+            "mean_ttft_ms": [
+                TrendPoint("r0", "l2off", "2026-10-01T00:00:00Z", "ok", 3.4),
+                TrendPoint("r1", "l2pp1", "2026-10-02T00:00:00Z", "ok", 2.8),
+                TrendPoint("r2", "l2pp1", "2026-10-03T00:00:00Z", "partial", 2.7),
+            ]
+        }
+        html = build_trend_html(series, scenario_key="mini-l2-64c")
+        self.assertIn("mini-l2-64c", html)
+        self.assertIn("<svg", html)
+        self.assertIn("partial", html)
+
+    def test_build_trend_html_empty(self) -> None:
+        html = build_trend_html({}, scenario_key="mini-l2-64c")
+        self.assertIn("没有数据", html) if "没有数据" in html else self.assertIn("mini-l2-64c", html)
 
 
 if __name__ == "__main__":

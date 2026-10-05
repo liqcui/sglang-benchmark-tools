@@ -252,6 +252,28 @@ class TestCli(unittest.TestCase):
             combined = out + err
             self.assertTrue("FAIL" in combined or "连接失败" in combined)
 
+    def test_trend_command(self) -> None:
+        with temp_home() as paths:
+            logs = prepare_logs(paths)
+            run_cli("ingest", "--home", str(paths.home), str(logs), "--infer")
+            code, out, err = run_cli(
+                "trend", "--home", str(paths.home),
+                "--scenario", "single-standard", "--json",
+            )
+            self.assertEqual(code, 0, err)
+            payload = json.loads(out)
+            self.assertIn("mean_ttft_ms", payload)
+            self.assertEqual(len(payload["mean_ttft_ms"]), 2)  # baseline + candidate
+            labels = {p["label"] for p in payload["mean_ttft_ms"]}
+            self.assertEqual(labels, {"baseline", "candidate"})
+
+            # console 形态
+            code, out, _ = run_cli(
+                "trend", "--home", str(paths.home), "--scenario", "single-standard"
+            )
+            self.assertEqual(code, 0)
+            self.assertIn("mean_ttft_ms", out)
+
 
 if __name__ == "__main__":
     unittest.main()
