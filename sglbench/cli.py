@@ -895,7 +895,8 @@ def cmd_multiturn(args: argparse.Namespace) -> int:
 
     _eprint(
         f"multiturn: {scenario.key} | clients={clients} rounds={rounds} "
-        f"req_len={request_length} out_len={output_length} rate={request_rate} url={url}"
+        f"req_len={request_length} out_len={output_length} rate={request_rate} "
+        f"max_parallel={args.max_parallel or '-'} url={url}"
     )
     result = run_multiturn(
         url=url,
@@ -910,6 +911,7 @@ def cmd_multiturn(args: argparse.Namespace) -> int:
         scenario_key=scenario.key,
         timeout_s=args.timeout_s,
         env_file=getattr(args, "env_file", None),
+        max_parallel=args.max_parallel,
     )
     if store:
         archive_multiturn(paths, result, store=store, env_file=getattr(args, "env_file", None))
@@ -1008,6 +1010,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--request-length", type=int, help="单轮基础请求长度（tokens 估算，默认取场景 random_input）")
     p.add_argument("--output-length", type=int, help="单轮输出长度（默认取场景 random_output）")
     p.add_argument("--request-rate", type=float, help="每客户端请求速率（默认取场景 request_rate；0=不限速）")
+    p.add_argument("--max-parallel", type=int, help="最大并发活跃客户端数（对齐官方 --max-parallel；不设=全并发+轮栅栏）")
     p.add_argument("--timeout-s", type=float, default=600.0, help="单请求超时秒数")
     p.add_argument("--label", help="run 标签（默认场景 key）")
     p.add_argument("--notes")

@@ -407,6 +407,19 @@ def _catalog() -> dict[str, Scenario]:
             tags=["hicache", "l2", "multiturn"],
         )
     )
+    items.append(
+        _deepseek(
+            "hicache-multiturn-80x10-r16", "HiCache 多轮对话 80×10 官方 H800 参数（rate16+parallel4）", "hicache",
+            "**官方任务基准案例**（L2 / L2+L3 必须包含）: --num-clients 80 --num-rounds 10 "
+            "--request-length 2048 --output-length 1 --request-rate 16 --max-parallel 4 "
+            "--enable-round-barrier。执行: sglbench multiturn --scenario <本key> --max-parallel 4 "
+            "（rate=16 已为场景默认; 突出 prefill 指标 TTFT/输入吞吐）。",
+            num_prompts=80, max_concurrency=80, random_input=2048, random_output=1,
+            request_rate=16.0,
+            sla=_sla(max_p99_ttft_ms=30000.0),
+            tags=["hicache", "l2", "l3", "multiturn", "official-bench"],
+        )
+    )
 
     # ── HiCache L3（Mooncake Store）多轮对话场景 ──
     # 对应官方 4 配置矩阵的 "L1+L2+Mooncake" 与 "Populated Mooncake" 两档。

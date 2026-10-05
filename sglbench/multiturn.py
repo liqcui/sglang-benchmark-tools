@@ -137,11 +137,14 @@ def _run_client(
     lock: threading.Lock,
     barrier: "threading.Barrier | None",
     request_rate: float,
+    sem: "threading.Semaphore | None" = None,
 ) -> None:
-    """单个客户端的完整多轮对话（轮间栅栏保证逐轮对齐）。"""
+    """单个客户端的完整多轮对话（轮间栅栏保证逐轮对齐；max_parallel 用信号量限并发）。"""
     prev_input = ""
     prev_output = ""
     for r in range(rounds):
+        if sem is not None:
+            sem.acquire()
         prompt = _build_prompt(client, r, prev_input, prev_output, request_length)
         ttft: float | None = None
         total: float | None = None
@@ -196,6 +199,8 @@ def _run_client(
             turn = Turn(client=client, round=r, ok=False, error=f"{type(exc).__name__}: {exc}")
         with lock:
             results.append(turn)
+        if sem is not None:
+            sem.release()
         if request_rate > 0:
             time.sleep(1.0 / request_rate)
         if barrier is not None:
@@ -219,6 +224,7 @@ def run_multiturn(
     scenario_key: str,
     timeout_s: float = DEFAULT_TIMEOUT_S,
     env_file: str | Path | None = None,
+    max_parallel: int | None = None,
 ) -> MultiTurnResult:
     """执行多轮对话基准并返回结果（不落盘）。"""
     started = utcnow()
@@ -231,12 +237,16 @@ def run_multiturn(
 
     results: list[Turn] = []
     lock = threading.Lock()
-    barrier = threading.Barrier(clients) if clients > 1 else None
+    # max_parallel>0 时用信号量限制并发活跃客户端（对齐官方 --max-parallel），
+    # 此时不做轮次栅栏（非全部客户端同时活跃）；否则全部并发 + 轮栅栏。
+    sem = threading.Semaphore(max_parallel) if max_parallel and max_parallel > 0 else None
+    barrier = None if sem else (threading.Barrier(clients) if clients > 1 else None)
     threads = [
         threading.Thread(
             target=_run_client,
             args=(c, url, model, rounds, request_length, max_tokens, timeout_s,
                   results, lock, barrier, request_rate),
+            kwargs={"sem": sem},
         )
         for c in range(clients)
     ]
