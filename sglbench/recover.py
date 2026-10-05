@@ -79,3 +79,62 @@ def fetch_pd_pods(*, namespace: str = NAMESPACE, runner=None) -> tuple[Any | Non
 def find_unhealthy_pods(*, namespace: str = NAMESPACE, runner=None) -> list[PodIssue]:
     data, _res = fetch_pd_pods(namespace=namespace, runner=runner)
     return find_pod_issues(data)
+
+
+# --------------------------------------------------------------------------- #
+# GPU 热复位
+# --------------------------------------------------------------------------- #
+
+
+@dataclass
+class GpuResetResult:
+    host: str
+    index: int
+    ok: bool
+    attempts: int
+    last_output: str
+
+
+def build_reset_cmd(index: int) -> str:
+    return f"sudo -n mx-smi -y -r -i {index}"
+
+
+def reset_gpu(
+    host_ip: str,
+    index: int,
+    *,
+    ssh_user: str = "ubuntu",
+    runner=None,
+    sleeper=None,
+    attempts: int = RESET_ATTEMPTS,
+) -> GpuResetResult:
+    """单个 GPU 热复位；"Resource temporarily unavailable" 等待后重试（≤attempts）。"""
+    import time
+
+    sleep = sleeper or time.sleep
+    last = ""
+    attempt = 0
+    for attempt in range(1, max(1, attempts) + 1):
+        res = ssh_run(host_ip, build_reset_cmd(index), user=ssh_user, timeout_s=120, runner=runner)
+        last = (res.stdout + "\n" + res.stderr).strip()
+        if res.ok:
+            return GpuResetResult(host_ip, index, True, attempt, last)
+        if not any(pat in last for pat in RETRYABLE_OUTPUT):
+            break  # 非可重试错误不浪费时间
+        if attempt < attempts:
+            sleep(RETRY_WAIT_S)
+    return GpuResetResult(host_ip, index, False, attempt, last)
+
+
+def build_gpu_list_cmd() -> str:
+    return "sudo -n mx-smi -L"
+
+
+def verify_node(host_ip: str, *, ssh_user: str = "ubuntu", runner=None) -> tuple[bool, str]:
+    """``mx-smi -L`` 全部 Available → True。"""
+    res = ssh_run(host_ip, build_gpu_list_cmd(), user=ssh_user, timeout_s=60, runner=runner)
+    text = (res.stdout + "\n" + res.stderr).strip()
+    if not res.ok:
+        return False, text
+    ok = "Unavailable" not in text and "Available" in text
+    return ok, text
