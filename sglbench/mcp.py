@@ -1,7 +1,8 @@
 """sglbench MCP server —— 把压测工具暴露为 MCP tools（stdio, 零依赖轻量实现）。
 
-任何 MCP 兼容 agent（Claude Code / OpenClaw 类框架等）可经此调用：
-    status / list_runs / show_run / sql / compare / dashboard / run_scenario
+任何 MCP 兼容 agent（Claude Code / OpenClaw 类框架等）可经此调用 13 个 tools：
+status / list_runs / show_run / sql / compare / dashboard / run_scenario /
+report / rounds / campaign_report / trend / forensics / recover（两段式 dry_run 默认 true）。
 
 协议: JSON-RPC 2.0 over stdio（MCP stdio transport, 行分隔 JSON）。
 启动: ``sglbench mcp``（agent 侧配置 command=sglbench, args=["mcp"]）。
@@ -96,6 +97,83 @@ TOOLS: list[dict[str, Any]] = [
                 "timeout_s": {"type": "number", "default": 3600},
             },
             "required": ["scenario"],
+        },
+    },
+    {
+        "name": "sglbench_report",
+        "description": "生成两个 run 的对比 HTML 报告（直方图/CDF/分位/逐轮曲线, 自包含）。",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "baseline_run": {"type": "string"},
+                "candidate_run": {"type": "string"},
+                "output": {"type": "string", "description": "输出 HTML 路径（默认 reports/）"},
+            },
+            "required": ["baseline_run", "candidate_run"],
+        },
+    },
+    {
+        "name": "sglbench_rounds",
+        "description": "多轮对话逐轮指标（TTFT/cache-hit 序列）；给 candidate_run 时附 Δ 表与断崖判定。",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"run_id": {"type": "string"}, "candidate_run": {"type": "string"}},
+            "required": ["run_id"],
+        },
+    },
+    {
+        "name": "sglbench_campaign_report",
+        "description": "战役完整报告（index.html+SUMMARY.md+每场景明细, 对标手工 TEST-REPORT）。",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "pair": {"type": "string", "description": "labelA=labelB（支持 * 前缀通配）"},
+                "output_dir": {"type": "string"},
+                "title": {"type": "string"},
+            },
+            "required": ["pair", "output_dir"],
+        },
+    },
+    {
+        "name": "sglbench_trend",
+        "description": "同一场景跨 run 指标时间线（回归跟踪; 非 ok run 标记）。",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "scenario": {"type": "string"},
+                "labels": {"type": "array", "items": {"type": "string"}},
+                "metrics": {"type": "array", "items": {"type": "string"}},
+                "since": {"type": "string", "description": "YYYY-MM-DD"},
+                "output": {"type": "string", "description": "可选 HTML 输出路径"},
+            },
+            "required": ["scenario"],
+        },
+    },
+    {
+        "name": "sglbench_forensics",
+        "description": "崩溃取证摘要（签名/证据目录）。collect=true 时现场补采（kubectl/ssh）。",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "run_id": {"type": "string"},
+                "collect": {"type": "boolean", "default": False},
+            },
+            "required": ["run_id"],
+        },
+    },
+    {
+        "name": "sglbench_recover",
+        "description": "GPU 热复位+pod 重建（硬件级, 破坏性）。两段式：dry_run 默认 true 返回计划；"
+                       "确认后显式传 dry_run=false 执行。",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "from_pods": {"type": "boolean", "description": "自动发现异常 pod 所在节点"},
+                "nodes": {"type": "array", "items": {"type": "string"}, "description": "节点名/IP"},
+                "gpus": {"type": "array", "items": {"type": "integer"}, "description": "默认 [0,4]"},
+                "rebuild": {"type": "boolean", "default": True},
+                "dry_run": {"type": "boolean", "default": True},
+            },
         },
     },
 ]
@@ -254,6 +332,135 @@ def tool_run_scenario(a: dict[str, Any]) -> dict[str, Any]:
     return _text(json.dumps(summary, ensure_ascii=False, indent=2))
 
 
+def tool_report(a: dict[str, Any]) -> dict[str, Any]:
+    from .analyze import compare_runs, scenario_for_run
+    from .report import build_html, write_html
+
+    paths = _paths()
+    with Store(paths.db, read_only=True) as store:
+        recs = [store.get_run(a["baseline_run"], with_samples=True),
+                store.get_run(a["candidate_run"], with_samples=True)]
+        recs = [r for r in recs if r is not None]
+        if len(recs) < 2:
+            return _err("run 不存在（用 sglbench_list_runs 查）")
+        scenario = scenario_for_run(recs[0])
+        report = compare_runs(store, [a["baseline_run"], a["candidate_run"]],
+                              baseline=a["baseline_run"], scenario=scenario)
+    out = Path(a.get("output")
+               or (paths.reports_dir / f"mcp-{a['baseline_run']}-vs-{a['candidate_run']}.html"))
+    write_html(out, build_html(report, runs=recs))
+    return _text(json.dumps({"output": str(out)}, ensure_ascii=False))
+
+
+def tool_rounds(a: dict[str, Any]) -> dict[str, Any]:
+    from .rounds import extract_rounds, round_delta_rows, round_verdict
+
+    paths = _paths()
+    with Store(paths.db, read_only=True) as store:
+        run = store.get_run(a["run_id"], with_samples=False)
+        if run is None:
+            return _err(f"未找到 run: {a['run_id']}")
+        payload: dict[str, Any] = {"run_id": run.run_id, "rounds": extract_rounds(run.metrics)}
+        if a.get("candidate_run"):
+            cand = store.get_run(a["candidate_run"], with_samples=False)
+            if cand is None:
+                return _err(f"未找到 run: {a['candidate_run']}")
+            payload["candidate_run"] = cand.run_id
+            payload["delta"] = [
+                {"round": r, "base": b, "cand": c, "pct": p}
+                for r, b, c, p in round_delta_rows(run.metrics, cand.metrics)
+            ]
+            payload["verdict"] = round_verdict(run.metrics, cand.metrics)
+    return _text(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+
+
+def tool_campaign_report(a: dict[str, Any]) -> dict[str, Any]:
+    from .campaign import write_suite
+
+    pair = (a.get("pair") or "").split("=", 1)
+    if len(pair) != 2:
+        return _err("pair 需形如 labelA=labelB")
+    paths = _paths()
+    with Store(paths.db, read_only=True) as store:
+        result = write_suite(store, a["output_dir"], label_pairs=[pair], title=a.get("title"))
+    return _text(json.dumps({
+        "index": str(result["index"]),
+        "summary_md": str(result["summary_md"]) if result["summary_md"] else None,
+        "reports": len(result["reports"]),
+    }, ensure_ascii=False, indent=2))
+
+
+def tool_trend(a: dict[str, Any]) -> dict[str, Any]:
+    from dataclasses import asdict
+
+    from .analyze import analyze_trend
+
+    paths = _paths()
+    with Store(paths.db, read_only=True) as store:
+        series = analyze_trend(
+            store, a["scenario"],
+            labels=a.get("labels") or None,
+            metrics=a.get("metrics") or None,
+            since=a.get("since"),
+        )
+    payload: dict[str, Any] = {k: [asdict(p) for p in pts] for k, pts in series.items()}
+    if a.get("output"):
+        from .report import build_trend_html, write_html
+
+        write_html(a["output"], build_trend_html(series, scenario_key=a["scenario"]))
+        payload["html"] = a["output"]
+    return _text(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+
+
+def tool_forensics(a: dict[str, Any]) -> dict[str, Any]:
+    paths = _paths()
+    collect = bool(a.get("collect"))
+    with Store(paths.db, read_only=not collect) as store:
+        run = store.get_run(a["run_id"], with_samples=False)
+        if run is None:
+            return _err(f"未找到 run: {a['run_id']}")
+        if collect:
+            from .forensics import collect_evidence
+
+            report = collect_evidence(paths, run, trigger="manual")
+            store.save_forensics(
+                run.run_id, trigger="manual", nodes=report.nodes,
+                signatures=report.signatures, evidence_dir=report.evidence_dir,
+                ok=report.ok, notes="; ".join(report.notes),
+            )
+        row = store.get_forensics(run.run_id)
+    if not row:
+        return _text(json.dumps({"collected": False,
+                                 "hint": "无取证记录; collect=true 现场补采"},
+                                ensure_ascii=False))
+    return _text(json.dumps({
+        "collected": True, "run_id": row["run_id"], "trigger": row["trigger"],
+        "ok": row["ok"], "collected_at": row["collected_at"],
+        "evidence_dir": row["evidence_dir"], "notes": row["notes"],
+        "signatures": json.loads(row["signatures_json"] or "[]"),
+    }, ensure_ascii=False, indent=2, default=str))
+
+
+def tool_recover(a: dict[str, Any]) -> dict[str, Any]:
+    """GPU 热复位+重建。安全语义：dry_run 默认 true（先计划，确认后显式 false 执行）。"""
+    from .recover import DEFAULT_GPU_INDICES, render_recovery_report, run_recovery
+
+    dry_run = bool(a.get("dry_run", True))
+    nodes = a.get("nodes") or []
+    if not a.get("from_pods") and not nodes:
+        return _err("至少给 from_pods=true 或 nodes=[...]")
+    report = run_recovery(
+        nodes=nodes or None,
+        from_pods=bool(a.get("from_pods", False)),
+        gpus=tuple(int(x) for x in (a.get("gpus") or DEFAULT_GPU_INDICES)),
+        dry_run=dry_run,
+        rebuild=bool(a.get("rebuild", True)),
+    )
+    payload = report.to_dict()
+    payload["plan_text"] = render_recovery_report(report)
+    return _text(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
+
+
 HANDLERS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "sglbench_status": tool_status,
     "sglbench_list_runs": tool_list_runs,
@@ -262,6 +469,12 @@ HANDLERS: dict[str, Callable[[dict[str, Any]], dict[str, Any]]] = {
     "sglbench_compare": tool_compare,
     "sglbench_dashboard": tool_dashboard,
     "sglbench_run_scenario": tool_run_scenario,
+    "sglbench_report": tool_report,
+    "sglbench_rounds": tool_rounds,
+    "sglbench_campaign_report": tool_campaign_report,
+    "sglbench_trend": tool_trend,
+    "sglbench_forensics": tool_forensics,
+    "sglbench_recover": tool_recover,
 }
 
 
