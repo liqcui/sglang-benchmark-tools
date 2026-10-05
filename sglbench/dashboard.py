@@ -69,17 +69,17 @@ def resolve_pairs(
             continue
         # 两 label 下所有 ok run, 按 scenario_key 配对 (各取最新)
         off_runs = {
-            r["scenario_key"]: r["run_id"]
+            r["scenario_key"]: r
             for r in store.query(
-                "SELECT run_id, scenario_key FROM runs WHERE label = ? AND status='ok' "
+                "SELECT run_id, scenario_key, status FROM runs WHERE label = ? AND status='ok' "
                 "ORDER BY started_at ASC NULLS LAST",
                 [off_label],
             )
         }
         on_runs = {
-            r["scenario_key"]: r["run_id"]
+            r["scenario_key"]: r
             for r in store.query(
-                "SELECT run_id, scenario_key FROM runs WHERE label = ? AND status='ok' "
+                "SELECT run_id, scenario_key, status FROM runs WHERE label = ? AND status='ok' "
                 "ORDER BY started_at ASC NULLS LAST",
                 [on_label],
             )
@@ -87,24 +87,33 @@ def resolve_pairs(
         for key in off_runs:
             if key not in on_runs:
                 continue
-            o, n = off_runs[key], on_runs[key]
+            o, n = off_runs[key]["run_id"], on_runs[key]["run_id"]
             out.append(
                 {
                     "name": key,
                     "off_run": o,
                     "on_run": n,
+                    "status_off": off_runs[key]["status"],
+                    "status_on": on_runs[key]["status"],
                     "metrics_off": _runs_metrics(store, o),
                     "metrics_on": _runs_metrics(store, n),
                 }
             )
     for off_run, on_run in run_pairs or []:
         mo, mn = _runs_metrics(store, off_run), _runs_metrics(store, on_run)
-        row = store.query("SELECT scenario_key FROM runs WHERE run_id = ?", [off_run])
+        rows = store.query(
+            "SELECT run_id, scenario_key, status FROM runs WHERE run_id IN (?, ?)",
+            [off_run, on_run],
+        )
+        by_id = {r["run_id"]: r for r in rows}
+        off_row = by_id.get(off_run, {})
         out.append(
             {
-                "name": (row[0]["scenario_key"] if row else off_run),
+                "name": off_row.get("scenario_key") or off_run,
                 "off_run": off_run,
                 "on_run": on_run,
+                "status_off": (off_row.get("status") or "ok"),
+                "status_on": (by_id.get(on_run, {}).get("status") or "ok"),
                 "metrics_off": mo,
                 "metrics_on": mn,
             }
