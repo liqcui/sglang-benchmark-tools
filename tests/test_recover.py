@@ -1,12 +1,15 @@
 """recover pod 异常发现单测（fixture JSON, 零真实 kubectl）。"""
 from __future__ import annotations
 
+import json
 import unittest
 
 from sglbench.recover import (
     build_reset_cmd,
     find_pod_issues,
+    render_recovery_report,
     reset_gpu,
+    run_recovery,
     verify_node,
 )
 from sglbench.remote import CmdResult
@@ -139,6 +142,82 @@ class TestGpuReset(unittest.TestCase):
         ok, text = verify_node("10.66.3.29", runner=fake3)
         self.assertFalse(ok)
         self.assertIn("connect refused", text)
+
+
+class TestRecoveryOrchestration(unittest.TestCase):
+    def test_dry_run_plans_only(self):
+        calls = []
+
+        def kubectl(argv):
+            calls.append(list(argv))
+            return CmdResult(False, "", "no kubectl in dry-run test", list(argv), None)
+
+        rep = run_recovery(
+            from_pods=True, dry_run=True,
+            kubectl_runner=kubectl,
+            ssh_runner=lambda a: calls.append(list(a)),
+        )
+        self.assertTrue(rep.dry_run)
+        self.assertEqual([c for c in calls if c[0] == "ssh"], [])  # 无任何 ssh 动作
+
+    def test_dry_run_with_explicit_node(self):
+        rep = run_recovery(nodes=["mxgpu-3-29"], dry_run=True)
+        self.assertEqual(len(rep.nodes), 1)
+        self.assertEqual(rep.nodes[0].host_ip, "10.66.3.29")
+        text = render_recovery_report(rep)
+        self.assertIn("[计划]", text)
+        self.assertIn("10.66.3.29", text)
+
+    def test_full_recovery_with_injected_runners(self):
+        deletes = []
+
+        def kubectl(argv):
+            if "get" in argv:
+                return CmdResult(True, json.dumps({"items": [
+                    {"metadata": {"name": "prefill-0-1"},
+                     "spec": {"nodeName": "mxgpu-3-31"},
+                     "status": {"hostIP": "10.66.3.31",
+                                "conditions": [{"type": "Ready", "status": "False"}],
+                                "containerStatuses": []}},
+                ]}), "", list(argv), 0)
+            deletes.append(list(argv))
+            return CmdResult(True, "", "", list(argv), 0)
+
+        def ssh(argv):
+            cmd = argv[-1]
+            if "mx-smi -L" in cmd:
+                return CmdResult(True, "GPU#0 Available\nGPU#1 Available\n", "", list(argv), 0)
+            return CmdResult(True, "reset ok", "", list(argv), 0)
+
+        rep = run_recovery(
+            from_pods=True, gpus=(0, 4),
+            kubectl_runner=kubectl, ssh_runner=ssh, sleeper=lambda s: None,
+        )
+        self.assertTrue(rep.ok)
+        self.assertEqual(len(rep.nodes), 1)
+        node = rep.nodes[0]
+        self.assertEqual([r.index for r in node.resets], [0, 4])
+        self.assertTrue(all(r.ok for r in node.resets))
+        self.assertTrue(node.healthy)
+        self.assertIn("prefill-0-1", node.rebuilt)
+        self.assertTrue(any("delete" in " ".join(d) for d in deletes))
+
+    def test_failed_reset_marks_report_not_ok(self):
+        def kubectl(argv):
+            return CmdResult(False, "", "no", list(argv), None)
+
+        def ssh(argv):
+            cmd = argv[-1]
+            if "mx-smi -L" in cmd:
+                return CmdResult(True, "GPU#0 Available\n", "", list(argv), 0)
+            return CmdResult(False, "", "boom", list(argv), 1)
+
+        rep = run_recovery(
+            nodes=["10.66.3.29"], gpus=(0,),
+            kubectl_runner=kubectl, ssh_runner=ssh, sleeper=lambda s: None,
+        )
+        self.assertFalse(rep.ok)
+        self.assertFalse(rep.nodes[0].resets[0].ok)
 
 
 if __name__ == "__main__":

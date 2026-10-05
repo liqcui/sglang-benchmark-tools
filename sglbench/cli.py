@@ -1083,6 +1083,28 @@ def cmd_campaign_report(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_recover(args: argparse.Namespace) -> int:
+    """GPU 热复位 + pod 重建（显式触发；硬件级动作）。"""
+    from .recover import render_recovery_report, run_recovery
+
+    if not args.from_pods and not args.node:
+        raise UsageError("至少给 --from-pods 或 --node <mxgpu-3-XX>")
+    gpus = (
+        tuple(range(8))
+        if args.gpus == "all"
+        else tuple(int(x) for x in (args.gpus or "0,4").split(",") if x.strip())
+    )
+    report = run_recovery(
+        nodes=args.node, from_pods=args.from_pods, gpus=gpus,
+        dry_run=args.dry_run, rebuild=not args.no_rebuild, ssh_user=args.ssh_user,
+    )
+    if args.json:
+        print(json.dumps(report.to_dict(), ensure_ascii=False, indent=2, default=str))
+    else:
+        print(render_recovery_report(report))
+    return EXIT_OK if (report.ok or report.dry_run) else EXIT_FAIL
+
+
 # --------------------------------------------------------------------------- #
 # status（agent 健康快照）
 # --------------------------------------------------------------------------- #
@@ -1266,6 +1288,18 @@ def build_parser() -> argparse.ArgumentParser:
     cr.add_argument("-o", "--output", required=True, help="输出目录")
     cr.add_argument("--no-md", action="store_true", help="不生成 SUMMARY.md")
     cr.set_defaults(func=cmd_campaign_report)
+
+    # recover —— GPU 热复位 + 重建（显式触发; 硬件级动作）
+    p = sub.add_parser("recover", help="GPU 热复位+pod 重建（ssh mx-smi; --dry-run 先看计划）")
+    _add_common(p)
+    p.add_argument("--from-pods", action="store_true", help="自动发现异常 pod 所在节点")
+    p.add_argument("--node", action="append", default=[], help="指定节点（mxgpu-3-XX 或 IP; 可重复）")
+    p.add_argument("--gpus", default="0,4", help="复位 GPU 索引（默认 0,4; all=0..7）")
+    p.add_argument("--dry-run", action="store_true")
+    p.add_argument("--no-rebuild", action="store_true", help="只复位不删 pod")
+    p.add_argument("--ssh-user", default="ubuntu")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_recover)
 
     # status（agent 健康快照）
     p = sub.add_parser("status", help="集群+DB 健康快照（JSON; agent 决策入口, 只读非侵入）")

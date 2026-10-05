@@ -272,6 +272,21 @@ class TestCli(unittest.TestCase):
             combined = out + err
             self.assertTrue("FAIL" in combined or "连接失败" in combined)
 
+    def test_recover_usage_needs_target(self) -> None:
+        with temp_home() as paths:
+            code, _out, err = run_cli("recover", "--home", str(paths.home))
+            self.assertEqual(code, 2)
+            self.assertIn("--from-pods", err)
+
+    def test_recover_dry_run_with_node(self) -> None:
+        with temp_home() as paths:
+            code, out, err = run_cli(
+                "recover", "--home", str(paths.home), "--dry-run", "--node", "mxgpu-3-29"
+            )
+            self.assertEqual(code, 0, err)
+            self.assertIn("10.66.3.29", out)
+            self.assertIn("计划", out)
+
     def test_trend_command(self) -> None:
         with temp_home() as paths:
             logs = prepare_logs(paths)
