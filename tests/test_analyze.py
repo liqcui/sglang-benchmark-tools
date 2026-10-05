@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import unittest
+from datetime import datetime, timezone
 
 from sglbench.analyze import (
     DEFAULT_THRESHOLD_PCT,
     analyze_sweep,
+    analyze_trend,
     check_comparability,
     compare_metrics,
     compare_runs,
@@ -359,6 +361,39 @@ class TestSmallHelpers(unittest.TestCase):
 
     def test_scenario_catalog_usable(self) -> None:
         self.assertIn("conc-128-crash-probe", BUILTIN_SCENARIOS)
+
+
+class TestTrend(unittest.TestCase):
+    def _seed(self, store) -> None:
+        for i, (label, status, ttft) in enumerate(
+            [("l2off", "ok", 3.4), ("l2pp1", "ok", 2.8), ("l2pp1", "partial", 2.7)]
+        ):
+            store.save_run(
+                RunRecord(
+                    run_id=f"tr{i}", scenario_key="mini-l2-64c", label=label, status=status,
+                    started_at=datetime(2026, 10, i + 1, tzinfo=timezone.utc),
+                    metrics={"mean_ttft_ms": ttft},
+                    params={"num_prompts": 50, "max_concurrency": 64},
+                )
+            )
+
+    def test_analyze_trend_orders_and_filters(self) -> None:
+        with temp_home() as paths, Store(paths.db) as store:
+            self._seed(store)
+            out = analyze_trend(store, "mini-l2-64c")
+            pts = out["mean_ttft_ms"]
+            self.assertEqual([p.run_id for p in pts], ["tr0", "tr1", "tr2"])  # 时间升序
+            self.assertEqual(out["success_rate"], [])  # 无该指标 → 空
+            only = analyze_trend(store, "mini-l2-64c", labels=["l2pp1"])
+            self.assertEqual([p.label for p in only["mean_ttft_ms"]], ["l2pp1", "l2pp1"])
+            since = analyze_trend(store, "mini-l2-64c", since="2026-10-02")
+            self.assertEqual([p.run_id for p in since["mean_ttft_ms"]], ["tr1", "tr2"])
+
+    def test_analyze_trend_keeps_nonok(self) -> None:
+        with temp_home() as paths, Store(paths.db) as store:
+            self._seed(store)
+            out = analyze_trend(store, "mini-l2-64c")
+            self.assertEqual(out["mean_ttft_ms"][-1].status, "partial")
 
 
 if __name__ == "__main__":

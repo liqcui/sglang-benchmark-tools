@@ -952,6 +952,63 @@ def analyze_sweep(
 
 
 # --------------------------------------------------------------------------- #
+# 跨 run 趋势（回归跟踪）
+# --------------------------------------------------------------------------- #
+
+TREND_DEFAULT_METRICS = ("mean_ttft_ms", "total_token_throughput_tok_s", "success_rate")
+
+
+@dataclass
+class TrendPoint:
+    """趋势图上的一次 run 采样。"""
+
+    run_id: str
+    label: str
+    started_at: str | None
+    status: str
+    value: float | None
+
+
+def analyze_trend(
+    store: Store,
+    scenario_key: str,
+    *,
+    labels: Sequence[str] | None = None,
+    metrics: Sequence[str] | None = None,
+    since: str | None = None,
+) -> dict[str, list[TrendPoint]]:
+    """同一 scenario 跨 run 的指标时间序列（含非 ok run，供回归跟踪）。"""
+    keys = list(metrics or TREND_DEFAULT_METRICS)
+    sql = (
+        "SELECT r.run_id, r.label, r.started_at, r.status, m.metric_key, m.value "
+        "FROM runs r JOIN metrics m USING (run_id) WHERE r.scenario_key = ?"
+    )
+    params: list[Any] = [scenario_key]
+    if labels:
+        sql += " AND r.label IN (" + ",".join("?" * len(labels)) + ")"
+        params.extend(labels)
+    if since:
+        sql += " AND r.started_at >= ?"
+        params.append(since)
+    sql += " ORDER BY r.started_at ASC NULLS LAST"
+    out: dict[str, list[TrendPoint]] = {k: [] for k in keys}
+    for row in store.query(sql, params):
+        key = row["metric_key"]
+        if key not in out:
+            continue
+        out[key].append(
+            TrendPoint(
+                run_id=row["run_id"],
+                label=row["label"] or "",
+                started_at=str(row["started_at"]) if row["started_at"] is not None else None,
+                status=row["status"],
+                value=float(row["value"]) if row["value"] is not None else None,
+            )
+        )
+    return out
+
+
+# --------------------------------------------------------------------------- #
 # 汇总表（供 CLI / 报告复用）
 # --------------------------------------------------------------------------- #
 
