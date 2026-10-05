@@ -148,6 +148,29 @@ def _maybe_gpu_recover(args: argparse.Namespace) -> str | None:
     return summary
 
 
+def _maybe_forensics(args: argparse.Namespace, paths, store, record) -> str | None:
+    """run 非 ok 时的自动取证（best-effort；--no-forensics 关闭；永不阻断主流程）。"""
+    if getattr(args, "no_forensics", False) or record is None or record.status == "ok":
+        return None
+    if paths is None:  # 纯单元路径（无产物目录）
+        return None
+    try:
+        from .forensics import collect_evidence
+
+        report = collect_evidence(paths, record, trigger="auto")
+        if store is not None:
+            store.save_forensics(
+                record.run_id, trigger="auto", nodes=report.nodes,
+                signatures=report.signatures, evidence_dir=report.evidence_dir,
+                ok=report.ok, notes="; ".join(report.notes),
+            )
+        _eprint(f"  [forensics] {report.summary_line()} → {report.evidence_dir}")
+        return report.summary_line()
+    except Exception as exc:  # noqa: BLE001 — 取证永不阻断主流程
+        _eprint(f"  [forensics] 采集异常（忽略）: {exc}")
+        return None
+
+
 def _eprint(*parts: Any) -> None:
     print(*parts, file=sys.stderr)
 
@@ -271,6 +294,7 @@ def cmd_run(args: argparse.Namespace) -> int:
         outcomes.append(outcome)
         if store:
             store.save_run(outcome.record)
+        _maybe_forensics(args, paths, store, outcome.record)
         if outcome.record.status != "ok":
             failures += 1
         metrics = outcome.record.metrics
@@ -515,10 +539,12 @@ def cmd_show(args: argparse.Namespace) -> int:
             _eprint(f"找不到 run: {run_id}")
             return EXIT_FAIL
         gates = evaluate_gates(_scenario(args, record.scenario_key) if _has_scenario(args, record.scenario_key) else None, record.metrics, record.issues)
+        forensics = store.get_forensics(run_id)
 
     if args.json:
         payload = record.to_dict(include_samples=False)
         payload["gates"] = [g.to_dict() for g in gates]
+        payload["forensics"] = forensics
         print(json.dumps(payload, ensure_ascii=False, indent=2))
         return EXIT_OK
 
@@ -575,6 +601,17 @@ def cmd_show(args: argparse.Namespace) -> int:
         print(f"\n日志异常 ({len(record.issues)} 条):")
         for issue in record.issues[:20]:
             print(f"  [{issue.severity}] {issue.kind}: {issue.message[:150]}")
+
+    if forensics:
+        sigs = json.loads(forensics.get("signatures_json") or "[]")
+        sig_names = ",".join(sorted({s.get("name", "?") for s in sigs})) or "无签名"
+        print(f"\n崩溃取证（{forensics.get('trigger')} · {forensics.get('collected_at')}）:")
+        print(
+            f"  {'完整' if forensics.get('ok') else 'partial'} · 签名[{sig_names}]"
+            f" · {forensics.get('evidence_dir')}"
+        )
+        for s in sigs[:10]:
+            print(f"    [{s.get('name')}] {s.get('source')}: {str(s.get('line'))[:120]}")
 
     if record.samples:
         from .stats import describe
@@ -1044,6 +1081,7 @@ def cmd_multiturn(args: argparse.Namespace) -> int:
         _wait_healthy(scenario)
     if store:
         archive_multiturn(paths, result, store=store, env_file=getattr(args, "env_file", None))
+        _maybe_forensics(args, paths, store, result)
         store.close()
 
     ok = sum(1 for t in result.turns if t.ok)
@@ -1122,6 +1160,38 @@ def cmd_recover(args: argparse.Namespace) -> int:
     else:
         print(render_recovery_report(report))
     return EXIT_OK if (report.ok or report.dry_run) else EXIT_FAIL
+
+
+def cmd_forensics(args: argparse.Namespace) -> int:
+    """崩溃取证（手动补采/重采；非 ok run 自动触发见 run --help）。"""
+    from .forensics import collect_evidence
+
+    paths = _paths(args)
+    with Store(paths.db) as store:
+        record = store.get_run(args.run, with_samples=False)
+        if record is None:
+            _eprint(f"❌ 未找到 run: {args.run}")
+            return EXIT_FAIL
+        report = collect_evidence(paths, record, trigger="manual")
+        store.save_forensics(
+            record.run_id, trigger="manual", nodes=report.nodes,
+            signatures=report.signatures, evidence_dir=report.evidence_dir,
+            ok=report.ok, notes="; ".join(report.notes),
+        )
+    if args.json:
+        print(json.dumps(
+            {"ok": report.ok, "evidence_dir": report.evidence_dir, "nodes": report.nodes,
+             "signatures": report.signatures, "notes": report.notes},
+            ensure_ascii=False, indent=2, default=str,
+        ))
+    else:
+        print(f"run_id: {record.run_id} · {report.summary_line()}")
+        for s in report.signatures:
+            print(f"  [{s['name']}] {s['source']}: {s['line']}")
+        if report.notes:
+            print("提示:", "; ".join(report.notes))
+    print(f"证据目录: {report.evidence_dir}")
+    return EXIT_OK
 
 
 # --------------------------------------------------------------------------- #
@@ -1245,6 +1315,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="非 ok 时自动等待服务健康并重试 ≤N 次（崩溃自愈; agent 友好）")
     p.add_argument("--gpu-reset", action="store_true",
                    help="崩溃重试前自动 GPU 热复位+重建（与 --auto-retry 配合; 硬件级动作）")
+    p.add_argument("--no-forensics", action="store_true", help="非 ok 时不做自动取证")
     p.add_argument("--retry-wait", type=float, default=900.0, metavar="SEC",
                    help="--auto-retry 每次等待健康的超时秒数（默认 900）")
     p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="覆盖场景参数，如 max_concurrency=64")
@@ -1278,6 +1349,7 @@ def build_parser() -> argparse.ArgumentParser:
                    help="非 ok 时自动等待服务健康并重试 ≤N 次（崩溃自愈）")
     p.add_argument("--gpu-reset", action="store_true",
                    help="崩溃重试前自动 GPU 热复位+重建（与 --auto-retry 配合; 硬件级动作）")
+    p.add_argument("--no-forensics", action="store_true", help="非 ok 时不做自动取证")
     p.add_argument("--timeout-s", type=float, default=600.0, help="单请求超时秒数")
     p.add_argument("--label", help="run 标签（默认场景 key）")
     p.add_argument("--notes")
@@ -1323,6 +1395,13 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--ssh-user", default="ubuntu")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_recover)
+
+    # forensics
+    p = sub.add_parser("forensics", help="崩溃取证（采集现场+签名提取; 非 ok run 自动触发）")
+    _add_common(p)
+    p.add_argument("run", help="run_id（可前缀匹配）")
+    p.add_argument("--json", action="store_true")
+    p.set_defaults(func=cmd_forensics)
 
     # status（agent 健康快照）
     p = sub.add_parser("status", help="集群+DB 健康快照（JSON; agent 决策入口, 只读非侵入）")

@@ -328,6 +328,63 @@ class TestCli(unittest.TestCase):
         args = build_parser().parse_args(["run", "--scenario", "conc-128-safe"])
         self.assertFalse(args.gpu_reset)  # 默认关闭
 
+    def test_maybe_forensics_gate(self) -> None:
+        from unittest import mock
+
+        from sglbench import cli as cli_mod
+
+        class R:
+            run_id = "r1"
+            status = "ok"
+
+        args = type("A", (), {"no_forensics": False})()
+        self.assertIsNone(cli_mod._maybe_forensics(args, object(), None, R()))  # ok → 不取证
+
+        class Bad(R):
+            status = "partial"
+
+        class Rep:
+            ok = False
+            notes = ["x"]
+            signatures = [{"name": "xnack"}]
+            nodes = [{"node": "n"}]
+            evidence_dir = "/tmp/ev"
+
+            def summary_line(self):
+                return "取证 partial: 节点 1 个, 签名[xnack]"
+
+        saved = {}
+
+        class FakeStore:
+            def save_forensics(self, run_id, **kw):
+                saved["run_id"] = run_id
+                saved.update(kw)
+
+        with mock.patch("sglbench.forensics.collect_evidence", return_value=Rep()):
+            with redirect_stderr(io.StringIO()):
+                text = cli_mod._maybe_forensics(args, object(), FakeStore(), Bad())
+        self.assertIsNotNone(text)
+        self.assertIn("xnack", text)
+        self.assertEqual(saved["run_id"], "r1")
+        self.assertEqual(saved["trigger"], "auto")
+
+        args2 = type("A", (), {"no_forensics": True})()
+        self.assertIsNone(cli_mod._maybe_forensics(args2, object(), FakeStore(), Bad()))
+
+    def test_forensics_no_run_found(self) -> None:
+        with temp_home() as paths:
+            code, out, err = run_cli("forensics", "nope-run", "--home", str(paths.home))
+            self.assertEqual(code, 1)
+            self.assertIn("未找到 run", out + err)
+
+    def test_no_forensics_flag_parses(self) -> None:
+        from sglbench.cli import build_parser
+
+        args = build_parser().parse_args(["run", "--scenario", "conc-128-safe", "--no-forensics"])
+        self.assertTrue(args.no_forensics)
+        args = build_parser().parse_args(["run", "--scenario", "conc-128-safe"])
+        self.assertFalse(args.no_forensics)
+
     def test_trend_command(self) -> None:
         with temp_home() as paths:
             logs = prepare_logs(paths)
