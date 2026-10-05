@@ -1,10 +1,23 @@
 """campaign suite 数据层单测。"""
 from __future__ import annotations
 
+import json as _json
+import tempfile as _tempfile
 import unittest
 from datetime import datetime, timezone
+from pathlib import Path as _Path
 
-from sglbench.campaign import build_suite, delta_pct, verdict_of
+from sglbench.campaign import (
+    CampaignSpec,
+    ScenarioEntry,
+    SideSpec,
+    build_suite,
+    delta_pct,
+    load_spec,
+    parse_scenario_entry,
+    should_skip,
+    verdict_of,
+)
 from sglbench.models import RunRecord
 from sglbench.store import Store
 
@@ -161,6 +174,62 @@ class CampaignDataTest(unittest.TestCase):
         self.assertIn("受控条件", md)
         self.assertIn("多轮对话", md)
         self.assertIn("|", md)
+
+
+class CampaignSpecTest(unittest.TestCase):
+    def test_parse_entry(self):
+        self.assertEqual(parse_scenario_entry("mini-l2-64c").key, "mini-l2-64c")
+        e = parse_scenario_entry({"key": "hicache-multiturn-80x10-r16", "mode": "multiturn",
+                                  "max_parallel": 4, "set": {"request_rate": 16.0}})
+        self.assertEqual(e.mode, "multiturn")
+        self.assertEqual(e.max_parallel, 4)
+        self.assertEqual(e.set["request_rate"], 16.0)
+        with self.assertRaises(ValueError):
+            parse_scenario_entry({"mode": "bench"})  # 缺 key
+
+    def test_load_spec_validation(self):
+        with _tempfile.TemporaryDirectory() as td:
+            p = _Path(td) / "c.json"
+            p.write_text(_json.dumps({
+                "name": "x",
+                "sides": {"baseline": {"label": "A", "env_file": "envs/a.json"}},
+                "scenarios": ["mini-l2-64c"],
+                "gpu_reset": True,
+            }), encoding="utf-8")
+            spec = load_spec(p)
+            self.assertEqual(spec.sides["baseline"].label, "A")
+            self.assertEqual(spec.sides["baseline"].env_file, "envs/a.json")
+            self.assertEqual(spec.scenarios[0].key, "mini-l2-64c")
+            self.assertTrue(spec.gpu_reset)
+            p.write_text(_json.dumps({"name": "x", "sides": {}, "scenarios": []}), encoding="utf-8")
+            with self.assertRaises(ValueError):
+                load_spec(p)
+            p.write_text(_json.dumps({"name": "x", "sides": {"a": {}}, "scenarios": ["k"]}),
+                         encoding="utf-8")
+            with self.assertRaises(ValueError):
+                load_spec(p)  # side 缺 label
+            p.write_text("{ not json", encoding="utf-8")
+            with self.assertRaises(ValueError):
+                load_spec(p)
+
+    def test_should_skip(self):
+        with temp_home() as paths, Store(paths.db) as store:
+            mk_run(store, "r1", scenario="mini-l2-64c", label="A", day=1,
+                   env={"deployment": "dep-1"}, metrics={"mean_ttft_ms": 1.0})
+            ent = parse_scenario_entry("mini-l2-64c")
+            # 无 env_file → 有 ok run 就跳过
+            self.assertTrue(should_skip(store, ent, SideSpec("A", None)))
+            # env 指纹一致 → 跳过；不一致 → 重跑
+            with _tempfile.TemporaryDirectory() as td:
+                same = _Path(td) / "same.json"
+                same.write_text(_json.dumps({"deployment": "dep-1"}), encoding="utf-8")
+                self.assertTrue(should_skip(store, ent, SideSpec("A", str(same))))
+                diff = _Path(td) / "diff.json"
+                diff.write_text(_json.dumps({"deployment": "dep-2"}), encoding="utf-8")
+                self.assertFalse(should_skip(store, ent, SideSpec("A", str(diff))))
+            # 不同 label / 未知场景 → 不跳过
+            self.assertFalse(should_skip(store, ent, SideSpec("B", None)))
+            self.assertFalse(should_skip(store, parse_scenario_entry("mini-l2-999x"), SideSpec("A", None)))
 
 
 if __name__ == "__main__":

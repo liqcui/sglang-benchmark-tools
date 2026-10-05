@@ -565,3 +565,112 @@ def write_suite(
         md_path = target / "SUMMARY.md"
         md_path.write_text(render_suite_markdown(suite), encoding="utf-8", newline="\n")
     return {"index": index_path, "summary_md": md_path, "reports": reports}
+
+
+# --------------------------------------------------------------------------- #
+# 战役执行器（spec 解析 / 跳过决策 / 执行）
+# --------------------------------------------------------------------------- #
+
+
+@dataclass
+class SideSpec:
+    label: str
+    env_file: str | None = None
+
+
+@dataclass
+class ScenarioEntry:
+    key: str
+    mode: str = "bench"          # bench / multiturn
+    max_parallel: int | None = None
+    set: dict[str, Any] = field(default_factory=dict)
+    repeats: int = 1
+
+
+@dataclass
+class CampaignSpec:
+    name: str
+    sides: dict[str, SideSpec]
+    scenarios: list[ScenarioEntry]
+    exec: str = "docker"
+    timeout: str = "30m"
+    auto_retry: int = 3
+    gpu_reset: bool = False
+    title: str = ""
+    output_dir: str = ""
+
+
+def parse_scenario_entry(raw: Any) -> ScenarioEntry:
+    if isinstance(raw, str):
+        return ScenarioEntry(key=raw)
+    if isinstance(raw, dict) and raw.get("key"):
+        return ScenarioEntry(
+            key=str(raw["key"]),
+            mode=str(raw.get("mode", "bench")),
+            max_parallel=raw.get("max_parallel"),
+            set=dict(raw.get("set") or {}),
+            repeats=int(raw.get("repeats", 1)),
+        )
+    raise ValueError(f"非法的 scenarios 条目: {raw!r}（应为 \"key\" 或 {{\"key\": ...}}）")
+
+
+def load_spec(path: str | Path) -> CampaignSpec:
+    """加载并校验战役 spec（JSON）。非法 → ValueError。"""
+    import json
+
+    p = Path(path)
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ValueError(f"战役 spec 读取失败: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError("战役 spec 必须是 JSON 对象")
+    sides_raw = data.get("sides") or {}
+    if not sides_raw:
+        raise ValueError("战役 spec 需要至少一个 sides 条目（如 baseline/candidate）")
+    sides: dict[str, SideSpec] = {}
+    for name, sv in sides_raw.items():
+        if not isinstance(sv, dict) or not sv.get("label"):
+            raise ValueError(f"side {name!r} 需要 label 字段")
+        sides[name] = SideSpec(label=str(sv["label"]), env_file=sv.get("env_file"))
+    scenarios = [parse_scenario_entry(x) for x in (data.get("scenarios") or [])]
+    if not scenarios:
+        raise ValueError("战役 spec 的 scenarios 不能为空")
+    return CampaignSpec(
+        name=str(data.get("name") or p.stem),
+        sides=sides,
+        scenarios=scenarios,
+        exec=str(data.get("exec", "docker")),
+        timeout=str(data.get("timeout", "30m")),
+        auto_retry=int(data.get("auto_retry", 3)),
+        gpu_reset=bool(data.get("gpu_reset", False)),
+        title=str(data.get("title", "")),
+        output_dir=str(data.get("output_dir", "")),
+    )
+
+
+def should_skip(store: Store, entry: ScenarioEntry, side: SideSpec) -> bool:
+    """(key, side.label) 已有 ok run（且 env 指纹一致）→ 跳过。
+
+    env 指纹 = env_file 的 ``deployment`` 字段 vs run_environments.deployment；
+    run 无环境快照时保守重跑。
+    """
+    rows = store.query(
+        "SELECT run_id FROM runs WHERE scenario_key = ? AND label = ? AND status = 'ok' "
+        "ORDER BY started_at DESC NULLS LAST LIMIT 1",
+        [entry.key, side.label],
+    )
+    if not rows:
+        return False
+    if not side.env_file:
+        return True
+    import json
+
+    try:
+        want = json.loads(Path(side.env_file).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return True  # env 文件读不了不阻塞（执行时仍会传）
+    env = store.get_environment(rows[0]["run_id"]) or {}
+    if not env:
+        return False  # run 无环境快照 → 无法证明一致, 重跑
+    return str(env.get("deployment") or "") == str(want.get("deployment") or "")
