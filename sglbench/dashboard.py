@@ -19,7 +19,8 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from .store import Store
-from .svgchart import grouped_bar_chart
+from .rounds import round_series
+from .svgchart import grouped_bar_chart, line_chart
 from .util import format_metric
 
 # 默认指标集: (metric_key, 显示名, 单位, 越高越好)
@@ -125,6 +126,32 @@ def _delta_cell(off: float | None, on: float | None, unit: str, higher_better: b
     )
 
 
+def _round_section(pairs: Sequence[Mapping[str, Any]]) -> str:
+    """多轮断崖区：每个含逐轮指标的成对场景一张 TTFT 曲线卡。"""
+    cards: list[str] = []
+    for p in pairs:
+        x, series = round_series(p.get("metrics_off") or {}, p.get("metrics_on") or {})
+        if not x:
+            continue
+        cards.append(
+            '<div class="card">'
+            + line_chart(
+                [float(v) for v in x], series,
+                title=f"{p['name']} · 逐轮 TTFT",
+                xlabel="轮次", ylabel="TTFT", unit="ms",
+                width=1160, height=330, annotate_points=False,
+                subtitle="round1 断崖越深命中越充分（本引擎 cache_hit_rate 恒 0 属测量限制）",
+            )
+            + "</div>"
+        )
+    if not cards:
+        return ""
+    return (
+        '<h2>多轮断崖（round0 冷 → round1 首次热 → 稳态）</h2>'
+        '<div class="charts">' + "".join(cards) + "</div>"
+    )
+
+
 def render_dashboard(
     pairs: Sequence[Mapping[str, Any]],
     *,
@@ -196,6 +223,7 @@ th{{background:#f4f6f8;text-align:center}} td:first-child,th:first-child{{text-a
 <h1>{_html.escape(title)}</h1>
 <div class="card note">{note or "同一批场景, 两个部署（或两个 run）的逐场景对比。绿=改善 (&gt;3%), 红=劣化 (&gt;3%)。"}</div>
 <div class="charts">{''.join(f'<div class="card">{c}</div>' for c in charts)}</div>
+{_round_section(pairs)}
 <h2>全指标表格（{pair_titles[0]} → {pair_titles[1]}）</h2>
 <div class="card"><table>{thead}{''.join(trs)}</table></div>
 <p class="note">生成: sglbench dashboard · {generated} · 数据源 DuckDB</p>
