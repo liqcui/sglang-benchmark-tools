@@ -991,6 +991,13 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
 # --------------------------------------------------------------------------- #
 
 
+def cmd_mcp(args: argparse.Namespace) -> int:
+    """启动 MCP server（stdio 阻塞直到 stdin 关闭）。"""
+    from .mcp import serve
+
+    return serve()
+
+
 def cmd_status(args: argparse.Namespace) -> int:
     """集群 + DB 的 JSON 健康快照（agent 决策入口; 只读非侵入）。"""
     import urllib.request
@@ -1152,6 +1159,11 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common(p)
     p.add_argument("--router", help="router URL（默认取场景常量）")
     p.set_defaults(func=cmd_status)
+
+    # mcp（MCP server, stdio）
+    p = sub.add_parser("mcp", help="MCP server（stdio）—— 供 agent 框架直接调用 list/run/compare/sql 等")
+    _add_common(p)
+    p.set_defaults(func=cmd_mcp)
 
     # ingest
     p = sub.add_parser("ingest", help="导入已有日志")
