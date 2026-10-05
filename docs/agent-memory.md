@@ -74,6 +74,18 @@ sglbench sql "SELECT r.scenario_key, r.label, e.deployment, e.hicache_ratio,
    观察-行动-记录循环天然闭环；`--json` 输出面可直接被工具调用消费。
 4. **不可变工件 + 内容指纹**——agent 的每个结论可回溯到原始日志。
 
-后续改造方向（未实现）：`sglbench mcp`（把 run/compare/list 暴露为 MCP tools）、
-崩溃自愈循环（wait_healthy → run → 检测 partial → 环境复位 → 重试）、
-自动环境捕获扩展（把 mx-smi/kubectl 的驱动版本、GPU 健康纳入快照）。
+**2026-10-05 已落地（agent 能力三件套 + MCP）**：
+
+- **`sglbench status`**——集群+DB 健康快照（JSON；router/leaders 自动探测，只读非侵入）→
+  agent 的决策入口（先 status 再行动）。
+- **`sglbench dashboard`**——跨场景对比仪表盘（label 自动配对/`--run-pair`；每指标
+  分组柱状趋势图 + 全指标 Δ 表格，自包含 HTML）→ 例行 A/B 分析固化为单命令。
+- **`run/multiturn --auto-retry N`**——崩溃自愈（非 ok 自动等健康重试；配合外部
+  GPU 复位流程）→ 把此前 ladder 脚本的手工 retry 模式内置。
+- **`sglbench mcp`**——MCP server（stdio，零依赖）：7 个 tools（status/list/show/sql/
+  compare/dashboard/run_scenario）→ 任何 MCP 兼容 agent 框架直接调用。
+- **OpenClaw 集成包**（`integrations/openclaw/`）：MCP 注册示例 + Skill 包
+  （`skills/sglbench/SKILL.md`）+ Shell 直调规范 → 小龙虾（OpenClaw）三种接入方式。
+
+后续方向（未实现）：崩溃自愈循环内嵌 GPU 复位（mx-smi 需宿主权限，当前留人工/外部）；
+自动环境捕获扩展（mx-smi/kubectl 驱动版本、GPU 健康纳入快照）。

@@ -932,21 +932,29 @@ def cmd_multiturn(args: argparse.Namespace) -> int:
         f"req_len={request_length} out_len={output_length} rate={request_rate} "
         f"max_parallel={args.max_parallel or '-'} url={url}"
     )
-    result = run_multiturn(
-        url=url,
-        model=scenario.model,
-        clients=clients,
-        rounds=rounds,
-        request_length=request_length,
-        output_length=output_length,
-        request_rate=request_rate,
-        label=args.label or scenario.key,
-        notes=args.notes or "",
-        scenario_key=scenario.key,
-        timeout_s=args.timeout_s,
-        env_file=getattr(args, "env_file", None),
-        max_parallel=args.max_parallel,
-    )
+    attempt = 0
+    max_retry = int(getattr(args, "auto_retry", 0) or 0)
+    while True:
+        result = run_multiturn(
+            url=url,
+            model=scenario.model,
+            clients=clients,
+            rounds=rounds,
+            request_length=request_length,
+            output_length=output_length,
+            request_rate=request_rate,
+            label=args.label or scenario.key,
+            notes=(args.notes or "") + (f" [auto-retry x{attempt}]" if attempt else ""),
+            scenario_key=scenario.key,
+            timeout_s=args.timeout_s,
+            env_file=getattr(args, "env_file", None),
+            max_parallel=args.max_parallel,
+        )
+        if result.status == "ok" or attempt >= max_retry:
+            break
+        attempt += 1
+        _eprint(f"  [auto-retry {attempt}/{max_retry}] 状态={result.status}，等待服务健康后重试 …")
+        _wait_healthy(scenario)
     if store:
         archive_multiturn(paths, result, store=store, env_file=getattr(args, "env_file", None))
         store.close()
@@ -1134,6 +1142,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--output-length", type=int, help="单轮输出长度（默认取场景 random_output）")
     p.add_argument("--request-rate", type=float, help="每客户端请求速率（默认取场景 request_rate；0=不限速）")
     p.add_argument("--max-parallel", type=int, help="最大并发活跃客户端数（对齐官方 --max-parallel；不设=全并发+轮栅栏）")
+    p.add_argument("--auto-retry", type=int, default=0, metavar="N",
+                   help="非 ok 时自动等待服务健康并重试 ≤N 次（崩溃自愈）")
     p.add_argument("--timeout-s", type=float, default=600.0, help="单请求超时秒数")
     p.add_argument("--label", help="run 标签（默认场景 key）")
     p.add_argument("--notes")
