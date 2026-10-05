@@ -272,6 +272,39 @@ class TestCli(unittest.TestCase):
             combined = out + err
             self.assertTrue("FAIL" in combined or "连接失败" in combined)
 
+    def test_campaign_run_dry_run(self) -> None:
+        import json as _json
+
+        with temp_home() as paths:
+            spec = paths.home / "spec.json"
+            spec.write_text(_json.dumps({
+                "name": "t", "sides": {"baseline": {"label": "l2off-opt"}},
+                "scenarios": ["mini-l2-64c", {"key": "hicache-multiturn-20x10", "mode": "multiturn"}],
+            }), encoding="utf-8")
+            code, out, err = run_cli(
+                "campaign", "run", str(spec), "--side", "baseline",
+                "--home", str(paths.home), "--dry-run",
+            )
+            self.assertEqual(code, 0, err)
+            self.assertIn("mini-l2-64c", out)
+            self.assertIn("hicache-multiturn-20x10", out)
+            # side 不存在 → 报错
+            code, _out, err = run_cli(
+                "campaign", "run", str(spec), "--side", "nope",
+                "--home", str(paths.home), "--dry-run",
+            )
+            self.assertEqual(code, 1)
+            self.assertIn("未知 side", err)
+            # spec 非法 → 报错
+            bad = paths.home / "bad.json"
+            bad.write_text("{ not json", encoding="utf-8")
+            code, _out, err = run_cli(
+                "campaign", "run", str(bad), "--side", "baseline",
+                "--home", str(paths.home), "--dry-run",
+            )
+            self.assertEqual(code, 1)
+            self.assertIn("读取失败", err)
+
     def test_recover_usage_needs_target(self) -> None:
         with temp_home() as paths:
             code, _out, err = run_cli("recover", "--home", str(paths.home))

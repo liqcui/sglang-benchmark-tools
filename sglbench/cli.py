@@ -1140,6 +1140,63 @@ def cmd_campaign_report(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_campaign_run(args: argparse.Namespace) -> int:
+    """执行战役一侧（当前部署下的全部场景，带自愈）；收尾可自动出完整报告。"""
+    from dataclasses import asdict
+
+    from .campaign import load_spec, render_campaign_plan, run_campaign
+
+    paths = _paths(args)
+    try:
+        spec = load_spec(args.spec)
+    except ValueError as exc:
+        _eprint(f"❌ {exc}")
+        return EXIT_FAIL
+    with Store(paths.db) as store:
+        if args.dry_run:
+            try:
+                result = run_campaign(paths, spec, side=args.side, only=args.only,
+                                      force=args.force, dry_run=True, store=store)
+            except ValueError as exc:
+                _eprint(f"❌ {exc}")
+                return EXIT_FAIL
+            rows = [(o.key, o.mode, o.action) for o in result.outcomes]
+            print(render_campaign_plan(spec, args.side, rows))
+            return EXIT_OK
+        try:
+            result = run_campaign(paths, spec, side=args.side, only=args.only,
+                                  force=args.force, store=store)
+        except ValueError as exc:
+            _eprint(f"❌ {exc}")
+            return EXIT_FAIL
+        report_dir = args.report_dir or spec.output_dir
+        if report_dir:
+            other = [s for s in spec.sides if s != args.side]
+            if other:
+                # 对侧 label 前缀通配配对（两侧批后缀不对称时也能全配）
+                from .campaign import write_suite
+
+                pairs = [(spec.sides[other[0]].label + "*", spec.sides[args.side].label + "*")]
+                try:
+                    res = write_suite(store, report_dir, label_pairs=pairs,
+                                      title=spec.title or spec.name)
+                    print(f"报告: {res['index']}（{len(res['reports'])} 场景）")
+                except Exception as exc:  # noqa: BLE001
+                    _eprint(f"⚠️ 自动报告生成失败（数据可能不全）: {exc}")
+            else:
+                _eprint("⚠️ spec 只有一侧，无法生成对比报告（需要另一侧数据）")
+    failures = result.failures
+    if args.json:
+        print(json.dumps({
+            "side": result.side,
+            "outcomes": [asdict(o) for o in result.outcomes],
+            "failures": len(failures),
+        }, ensure_ascii=False, indent=2, default=str))
+    print(f"战役完成: {len(result.outcomes)} 场景, 失败 {len(failures)}"
+          + ("（" + "、".join(o.key for o in failures) + "）" if failures else ""))
+    return EXIT_FAIL if failures else EXIT_OK
+
+
 def cmd_recover(args: argparse.Namespace) -> int:
     """GPU 热复位 + pod 重建（显式触发；硬件级动作）。"""
     from .recover import render_recovery_report, run_recovery
@@ -1383,6 +1440,17 @@ def build_parser() -> argparse.ArgumentParser:
     cr.add_argument("-o", "--output", required=True, help="输出目录")
     cr.add_argument("--no-md", action="store_true", help="不生成 SUMMARY.md")
     cr.set_defaults(func=cmd_campaign_report)
+
+    crun = csub.add_parser("run", help="执行战役一侧（当前部署下全部场景, 带自愈）")
+    _add_common(crun)
+    crun.add_argument("spec", help="战役 spec JSON 路径")
+    crun.add_argument("--side", required=True, help="执行哪一侧（spec.sides 的键）")
+    crun.add_argument("--only", action="append", default=[], help="场景过滤（fnmatch, 可重复）")
+    crun.add_argument("--force", action="store_true", help="已有 ok run 也重跑")
+    crun.add_argument("--dry-run", action="store_true", help="只打印计划")
+    crun.add_argument("--report-dir", help="结束后自动生成完整报告到该目录")
+    crun.add_argument("--json", action="store_true")
+    crun.set_defaults(func=cmd_campaign_run)
 
     # recover —— GPU 热复位 + 重建（显式触发; 硬件级动作）
     p = sub.add_parser("recover", help="GPU 热复位+pod 重建（ssh mx-smi; --dry-run 先看计划）")

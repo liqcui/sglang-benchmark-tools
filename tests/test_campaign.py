@@ -184,9 +184,12 @@ class CampaignDataTest(unittest.TestCase):
 class CampaignSpecTest(unittest.TestCase):
     def test_parse_entry(self):
         self.assertEqual(parse_scenario_entry("mini-l2-64c").key, "mini-l2-64c")
-        e = parse_scenario_entry({"key": "hicache-multiturn-80x10-r16", "mode": "multiturn",
+        self.assertEqual(parse_scenario_entry("mini-l2-64c").mode, "bench")
+        # multiturn 族自动推断执行路径
+        self.assertEqual(parse_scenario_entry("hicache-multiturn-20x10").mode, "multiturn")
+        e = parse_scenario_entry({"key": "hicache-multiturn-80x10-r16", "mode": "bench",
                                   "max_parallel": 4, "set": {"request_rate": 16.0}})
-        self.assertEqual(e.mode, "multiturn")
+        self.assertEqual(e.mode, "bench")  # 显式 mode 覆盖推断
         self.assertEqual(e.max_parallel, 4)
         self.assertEqual(e.set["request_rate"], 16.0)
         with self.assertRaises(ValueError):
@@ -235,6 +238,22 @@ class CampaignSpecTest(unittest.TestCase):
             # 不同 label / 未知场景 → 不跳过
             self.assertFalse(should_skip(store, ent, SideSpec("B", None)))
             self.assertFalse(should_skip(store, parse_scenario_entry("mini-l2-999x"), SideSpec("A", None)))
+
+    def test_should_skip_prefix_label(self):
+        """历史批后缀 label（l2off-opt-rt32 类）配合 env 指纹可跳过；无指纹不跳。"""
+        with temp_home() as paths, Store(paths.db) as store:
+            mk_run(store, "r1", scenario="conc-32-deepseek", label="A-rt32", day=1,
+                   env={"deployment": "dep-1"}, metrics={"mean_ttft_ms": 1.0})
+            ent = parse_scenario_entry("conc-32-deepseek")
+            # 无 env_file → 仅精确匹配, 'A' 不命中 'A-rt32'
+            self.assertFalse(should_skip(store, ent, SideSpec("A", None)))
+            with _tempfile.TemporaryDirectory() as td:
+                same = _Path(td) / "same.json"
+                same.write_text(_json.dumps({"deployment": "dep-1"}), encoding="utf-8")
+                self.assertTrue(should_skip(store, ent, SideSpec("A", str(same))))  # 前缀+指纹
+                diff = _Path(td) / "diff.json"
+                diff.write_text(_json.dumps({"deployment": "dep-2"}), encoding="utf-8")
+                self.assertFalse(should_skip(store, ent, SideSpec("A", str(diff))))  # 指纹不符
 
 
 class CampaignRunTest(unittest.TestCase):

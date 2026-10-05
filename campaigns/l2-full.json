@@ -1,0 +1,34 @@
+{
+  "name": "l2-full",
+  "title": "HiCache L2 全面对比（最优解拓扑 pp1/tp8/dp4）",
+  "exec": "docker",
+  "timeout": "30m",
+  "auto_retry": 3,
+  "gpu_reset": true,
+  "sides": {
+    "baseline": {
+      "label": "l2off-opt",
+      "env_file": "envs/pd-non-hicache.json"
+    },
+    "candidate": {
+      "label": "l2pp1-opt",
+      "env_file": "envs/hicache-l2-pp1.json"
+    }
+  },
+  "scenarios": [
+    "mini-l2-32c",
+    "mini-l2-64c",
+    "mini-l2-128c",
+    "conc-32-deepseek",
+    "conc-64-deepseek",
+    "conc-128-deepseek-safe",
+    "conc-256-deepseek",
+    "hicache-multiturn-20x10",
+    "hicache-multiturn-80x10",
+    {
+      "key": "hicache-multiturn-80x10-r16",
+      "max_parallel": 4
+    }
+  ],
+  "output_dir": "reports/l2full-v2"
+}

@@ -602,16 +602,23 @@ class CampaignSpec:
 
 def parse_scenario_entry(raw: Any) -> ScenarioEntry:
     if isinstance(raw, str):
-        return ScenarioEntry(key=raw)
+        return ScenarioEntry(key=raw, mode=_infer_mode(raw))
     if isinstance(raw, dict) and raw.get("key"):
+        key = str(raw["key"])
+        mode = str(raw.get("mode") or _infer_mode(key))
         return ScenarioEntry(
-            key=str(raw["key"]),
-            mode=str(raw.get("mode", "bench")),
+            key=key,
+            mode=mode,
             max_parallel=raw.get("max_parallel"),
             set=dict(raw.get("set") or {}),
             repeats=int(raw.get("repeats", 1)),
         )
     raise ValueError(f"非法的 scenarios 条目: {raw!r}（应为 \"key\" 或 {{\"key\": ...}}）")
+
+
+def _infer_mode(key: str) -> str:
+    """multiturn 族场景自动走多轮执行路径（显式 mode 可覆盖）。"""
+    return "multiturn" if "multiturn" in key else "bench"
 
 
 def load_spec(path: str | Path) -> CampaignSpec:
@@ -650,26 +657,27 @@ def load_spec(path: str | Path) -> CampaignSpec:
 
 
 def should_skip(store: Store, entry: ScenarioEntry, side: SideSpec) -> bool:
-    """(key, side.label) 已有 ok run（且 env 指纹一致）→ 跳过。
+    """该场景在本 side 已有 ok run → 跳过。
 
-    env 指纹 = env_file 的 ``deployment`` 字段 vs run_environments.deployment；
-    run 无环境快照时保守重跑。
+    label 匹配：精确命中，或 ``side.label`` 前缀（历史批后缀，如 l2off-opt-rt32）；
+    前缀命中**必须**通过 env 指纹（deployment）校验才跳过——防误配其他部署的数据。
+    无 env_file 时仅精确命中。
     """
     rows = store.query(
-        "SELECT run_id FROM runs WHERE scenario_key = ? AND label = ? AND status = 'ok' "
-        "ORDER BY started_at DESC NULLS LAST LIMIT 1",
-        [entry.key, side.label],
+        "SELECT run_id, label FROM runs WHERE scenario_key = ? AND (label = ? OR label LIKE ?) "
+        "AND status = 'ok' ORDER BY started_at DESC NULLS LAST LIMIT 1",
+        [entry.key, side.label, side.label + "%"],
     )
     if not rows:
         return False
     if not side.env_file:
-        return True
+        return rows[0]["label"] == side.label  # 无指纹 → 仅精确匹配
     import json
 
     try:
         want = json.loads(Path(side.env_file).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return True  # env 文件读不了不阻塞（执行时仍会传）
+        return rows[0]["label"] == side.label  # env 文件读不了 → 退回精确匹配
     env = store.get_environment(rows[0]["run_id"]) or {}
     if not env:
         return False  # run 无环境快照 → 无法证明一致, 重跑
