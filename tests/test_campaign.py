@@ -110,6 +110,32 @@ class CampaignDataTest(unittest.TestCase):
         ):
             self.assertIn(needle, html)
 
+    def test_write_suite_outputs(self) -> None:
+        import tempfile
+        from pathlib import Path
+
+        from sglbench.campaign import write_suite
+
+        with temp_home() as paths, Store(paths.db) as store:
+            seed_pair(store)
+            out = Path(tempfile.mkdtemp()) / "suite"
+            result = write_suite(store, out, label_pairs=[("A", "B")])
+
+        self.assertTrue(result["index"].exists())
+        self.assertIsNotNone(result["summary_md"])
+        self.assertTrue(result["summary_md"].exists())
+        self.assertEqual(len(result["reports"]), 2)
+
+        idx = result["index"].read_text(encoding="utf-8")
+        self.assertIn("01-hicache-multiturn-20x10.html", idx)
+        self.assertIn("02-mini-l2-32c.html", idx)
+        self.assertTrue((out / "02-mini-l2-32c.html").exists())
+
+        md = result["summary_md"].read_text(encoding="utf-8")
+        self.assertIn("受控条件", md)
+        self.assertIn("多轮对话", md)
+        self.assertIn("|", md)
+
 
 if __name__ == "__main__":
     unittest.main()

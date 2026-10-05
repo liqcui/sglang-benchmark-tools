@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import html
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from .analyze import DEFAULT_THRESHOLD_PCT
@@ -421,3 +422,103 @@ def render_suite_html(
 
 <p class="note">生成: sglbench campaign report · 数据源 DuckDB（run_environments / metrics / request_samples）</p>
 </body></html>"""
+
+
+def render_suite_markdown(suite: SuiteData) -> str:
+    """SUMMARY.md —— 表格与 index 同源（可直接 commit 进 docs/）。"""
+    a, b = suite.pair_titles
+    lines = [f"# {suite.title}", "", f"> 生成: sglbench campaign · {a} vs {b}", ""]
+    lines += ["## 1. 受控条件", "", f"| 项 | {a} | {b} |", "|---|---|---|"]
+    lines += [
+        f"| {k}{' ⚠差异' if diff else ''} | {va} | {vb} |" for k, va, vb, diff in suite.env_rows
+    ]
+    lines += [
+        "", "## 2. 场景汇总（TTFT/TPOT）", "",
+        f"| 场景 | TTFT {a}→{b} | Δ | TPOT {a}→{b} | Δ | 判定 |",
+        "|---|---|---|---|---|---|",
+    ]
+    for s in suite.summaries:
+        t = delta_pct(s.off.get("mean_ttft_ms"), s.on.get("mean_ttft_ms"))
+        p = delta_pct(s.off.get("mean_tpot_ms"), s.on.get("mean_tpot_ms"))
+        lines.append(
+            f"| {s.key} | {_fmt(s.off.get('mean_ttft_ms'), 'ms')}→{_fmt(s.on.get('mean_ttft_ms'), 'ms')} "
+            f"| {_delta_text(t)} | {_fmt(s.off.get('mean_tpot_ms'), 'ms')}→{_fmt(s.on.get('mean_tpot_ms'), 'ms')} "
+            f"| {_delta_text(p)} | {s.verdict} |"
+        )
+    lines += [
+        "", "## 3. 吞吐量完整对比（token/s）", "",
+        f"| 场景 | 输入 {a}→{b} | Δ | 输出 {a}→{b} | Δ | 总 {a}→{b} | Δ | 峰值输出 {a}→{b} | Δ |",
+        "|---|---|---|---|---|---|---|---|---|",
+    ]
+    for s in suite.summaries:
+        cells = [s.key]
+        for key, _disp, _higher in THROUGHPUT_KEYS:
+            d = delta_pct(s.off.get(key), s.on.get(key))
+            cells += [f"{_fmt(s.off.get(key), 'tok/s')}→{_fmt(s.on.get(key), 'tok/s')}", _delta_text(d)]
+        lines.append("| " + " | ".join(cells) + " |")
+    mt = [s for s in suite.summaries if s.round_verdict]
+    if mt:
+        lines += [
+            "", "## 4. 多轮对话（逐轮 TTFT）", "",
+            "| 场景 | round0(冷) Δ | round1(首次热) Δ | 稳态 Δ | 判定 |",
+            "|---|---|---|---|---|",
+        ]
+        for s in mt:
+            rv = s.round_verdict or {}
+            lines.append(
+                f"| {s.key} | {_delta_text(rv.get('round0_pct'))} | {_delta_text(rv.get('round1_pct'))} "
+                f"| {_delta_text(rv.get('steady_pct'))} | {rv.get('verdict')} |"
+            )
+    lines += ["", "## 5. 稳定性", ""]
+    for s in suite.summaries:
+        lines.append(f"- {s.key}: {a}={s.status_off} / {b}={s.status_on}")
+    lines += ["", "## 6. 结论（自动草稿）", ""]
+    lines += [f"- {c}" for c in suite.conclusions]
+    return "\n".join(lines) + "\n"
+
+
+def write_suite(
+    store: Store,
+    out_dir: str | Path,
+    *,
+    label_pairs: Sequence[Sequence[str]] | None = None,
+    run_pairs: Sequence[Sequence[str]] | None = None,
+    title: str | None = None,
+    pair_titles: tuple[str, str] | None = None,
+    with_md: bool = True,
+) -> dict[str, Any]:
+    """落盘 index.html + SUMMARY.md + NN-<scenario>.html（每场景完整报告）。"""
+    from .analyze import compare_runs, scenario_for_run
+    from .report import build_html, write_html
+
+    target = Path(out_dir)
+    target.mkdir(parents=True, exist_ok=True)
+    suite = build_suite(
+        store, label_pairs=label_pairs, run_pairs=run_pairs, title=title, pair_titles=pair_titles
+    )
+
+    links: dict[str, str] = {}
+    reports: dict[str, Path] = {}
+    for i, s in enumerate(suite.summaries):
+        fname = f"{i + 1:02d}-{s.key}.html"
+        links[s.key] = fname
+        recs = [store.get_run(r, with_samples=True) for r in (s.off_run, s.on_run)]
+        recs = [r for r in recs if r is not None]
+        scenario = scenario_for_run(recs[0]) if recs else None
+        comparison = compare_runs(store, [s.off_run, s.on_run], baseline=s.off_run, scenario=scenario)
+        html = build_html(
+            comparison, runs=recs,
+            title=f"{s.key} · {suite.pair_titles[0]} vs {suite.pair_titles[1]}",
+            report_path=target / fname,
+        )
+        write_html(target / fname, html)
+        reports[s.key] = target / fname
+
+    index_path = target / "index.html"
+    write_html(index_path, render_suite_html(suite, report_links=links))
+
+    md_path: Path | None = None
+    if with_md:
+        md_path = target / "SUMMARY.md"
+        md_path.write_text(render_suite_markdown(suite), encoding="utf-8", newline="\n")
+    return {"index": index_path, "summary_md": md_path, "reports": reports}
