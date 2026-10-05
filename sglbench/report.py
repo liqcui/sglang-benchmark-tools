@@ -625,6 +625,69 @@ def _samples_map(runs: Sequence[Any]) -> dict[str, dict[str, list[float]]]:
     return out
 
 
+def render_sweep_compare_console(overlay: Sequence[tuple[str, SweepReport]]) -> str:
+    """双 label 并发梯度对照表：行=并发，列=label×指标。"""
+    by_label: dict[str, dict[float, Any]] = {}
+    concs: set[float] = set()
+    for label, sweep in overlay:
+        by_label[label] = {
+            p.max_concurrency: p for p in sweep.points if p.max_concurrency is not None
+        }
+        concs |= set(by_label[label])
+    labels = [lbl for lbl, _ in overlay]
+    headers = (
+        ["并发"]
+        + [f"{lbl} TTFT(ms)" for lbl in labels]
+        + [f"{lbl} 总 tok/s" for lbl in labels]
+    )
+    rows = []
+    for c in sorted(concs):
+        row = [f"{c:g}"]
+        for lbl in labels:
+            p = by_label[lbl].get(c)
+            row.append("-" if p is None or p.mean_ttft_ms is None else f"{p.mean_ttft_ms:,.1f}")
+        for lbl in labels:
+            p = by_label[lbl].get(c)
+            row.append("-" if p is None or p.total_throughput is None else f"{p.total_throughput:,.0f}")
+        rows.append(row)
+    return render_table(headers, rows, ["left"] + ["right"] * (2 * len(labels)))
+
+
+def _sweep_overlay_charts(
+    overlay: Sequence[tuple[str, SweepReport]], width: int = 1160
+) -> list[str]:
+    """双部署并发梯度叠加图：TTFT 均值 / P99 / 总吞吐 每指标一张双线图。"""
+    xs = sorted(
+        {p.max_concurrency for _, s in overlay for p in s.points if p.max_concurrency is not None}
+    )
+    if not xs:
+        return []
+    charts = []
+    for attr, chart_title, unit in (
+        ("mean_ttft_ms", "TTFT 均值 vs 并发", "ms"),
+        ("p99_ttft_ms", "TTFT P99 vs 并发", "ms"),
+        ("total_throughput", "总吞吐 vs 并发", "tok/s"),
+    ):
+        series = []
+        for i, (label, sweep) in enumerate(overlay):
+            by_c = {p.max_concurrency: getattr(p, attr) for p in sweep.points}
+            series.append(
+                {
+                    "name": label,
+                    "color": color_for(i),
+                    "values": [by_c.get(c) for c in xs],
+                }
+            )
+        charts.append(
+            line_chart(
+                [float(c) for c in xs], series,
+                title=chart_title, xlabel="并发", ylabel=chart_title.split(" vs")[0],
+                unit=unit, width=width, height=340, x_log=True, annotate_points=False,
+            )
+        )
+    return charts
+
+
 def _round_chart_cards(report: ComparisonReport, width: int = 1160) -> list[str]:
     """逐轮 TTFT 曲线 + Δ 表（multiturn run 才产出；否则空列表）。"""
     base_view = next((r for r in report.runs if r.role == "baseline"), None)
@@ -665,6 +728,7 @@ def build_html(
     title: str | None = None,
     runs: Sequence[Any] = (),
     sweep: SweepReport | None = None,
+    sweep_overlay: Sequence[tuple[str, SweepReport]] | None = None,
     include_charts: bool = True,
     extra_notes: Sequence[str] = (),
     report_path: str | Path | None = None,
@@ -858,6 +922,12 @@ def build_html(
         )
         if sweep.notes:
             sweep_html += '<div class="note">' + "<br>".join(_esc(n) for n in sweep.notes) + "</div>"
+
+    # ---- 双部署并发梯度叠加 ----
+    if sweep_overlay:
+        sweep_html += "<h2>双部署并发梯度对比</h2>"
+        for overlay_chart in _sweep_overlay_charts(sweep_overlay):
+            sweep_html += _chart_card(overlay_chart, full=True)
 
     # ---- 组装 ----
     conclusions = "".join(f"<li>{_esc(c)}</li>" for c in report.conclusions)

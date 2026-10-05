@@ -6,7 +6,7 @@ import re
 import unittest
 import xml.etree.ElementTree as ET
 
-from sglbench.analyze import analyze_sweep, compare_runs
+from sglbench.analyze import SweepPoint, SweepReport, analyze_sweep, compare_runs
 from sglbench.models import RunRecord
 from sglbench.report import (
     build_html,
@@ -16,6 +16,7 @@ from sglbench.report import (
     pad,
     render_console,
     render_markdown,
+    render_sweep_compare_console,
     render_sweep_console,
     render_table,
 )
@@ -358,6 +359,53 @@ class TestTrendHtml(unittest.TestCase):
     def test_build_trend_html_empty(self) -> None:
         html = build_trend_html({}, scenario_key="mini-l2-64c")
         self.assertIn("没有数据", html) if "没有数据" in html else self.assertIn("mini-l2-64c", html)
+
+
+class TestSweepOverlay(unittest.TestCase):
+    def _overlay(self):
+        def rep(label, ttfts):
+            pts = [
+                SweepPoint(
+                    run_id=f"{label}-{c}", label=label, scenario_key=f"conc-{c}-deepseek",
+                    max_concurrency=float(c), request_rate=4.0, success_rate=1.0,
+                    mean_ttft_ms=v, p99_ttft_ms=v * 1.2, mean_tpot_ms=25.0, p99_tpot_ms=30.0,
+                    output_throughput=1000.0, total_throughput=3000.0 + c, status="ok",
+                )
+                for c, v in ttfts.items()
+            ]
+            return SweepReport(group_key="concurrency", points=pts)
+
+        return [
+            ("l2off", rep("l2off", {32: 3.9, 64: 4.5})),
+            ("l2pp1", rep("l2pp1", {32: 2.7, 64: 4.8})),
+        ]
+
+    def test_console_table(self):
+        text = render_sweep_compare_console(self._overlay())
+        self.assertIn("l2off", text)
+        self.assertIn("l2pp1", text)
+        self.assertIn("2.7", text)  # l2pp1 @32
+        self.assertIn("并发", text)
+
+    def test_html_overlay_section(self):
+        with temp_home() as paths, Store(paths.db) as store:
+            seed(store)
+            report = compare_runs(
+                store, ["base", "cand"], scenario=get_scenario("single-standard"),
+                with_distributions=False, resamples=200,
+            )
+        html = build_html(report, sweep_overlay=self._overlay())
+        self.assertIn("双部署并发梯度对比", html)
+        self.assertGreaterEqual(html.count("<polyline"), 2)  # 至少一张双线图
+
+    def test_html_without_overlay_unchanged(self):
+        with temp_home() as paths, Store(paths.db) as store:
+            seed(store)
+            report = compare_runs(
+                store, ["base", "cand"], scenario=get_scenario("single-standard"),
+                with_distributions=False, resamples=200,
+            )
+        self.assertNotIn("双部署并发梯度对比", build_html(report))
 
 
 if __name__ == "__main__":

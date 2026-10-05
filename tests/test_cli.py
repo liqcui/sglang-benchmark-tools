@@ -208,6 +208,26 @@ class TestCli(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("并发梯度扫描", out)
 
+    def test_sweep_with_labels(self) -> None:
+        with temp_home() as paths:
+            logs = prepare_logs(paths)
+            run_cli("ingest", "--home", str(paths.home), str(logs), "--infer")
+            # 单 label：走叠加分支的 per-label 报告（不做跨 label 对照表）
+            code, out, _ = run_cli(
+                "sweep", "--home", str(paths.home), "--family", "concurrency",
+                "--label", "baseline",
+            )
+            self.assertEqual(code, 0)
+            self.assertIn("label: baseline", out)
+            # json 形态
+            code, out, _ = run_cli(
+                "sweep", "--home", str(paths.home), "--family", "concurrency",
+                "--label", "baseline", "--json",
+            )
+            self.assertEqual(code, 0)
+            payload = json.loads(out)
+            self.assertIn("baseline", payload)
+
     def test_export_and_sql_and_db(self) -> None:
         with temp_home() as paths:
             logs = prepare_logs(paths)

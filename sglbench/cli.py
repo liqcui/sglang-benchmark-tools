@@ -38,6 +38,7 @@ from .report import (
     build_html,
     render_console,
     render_markdown,
+    render_sweep_compare_console,
     render_sweep_console,
     render_table,
     write_html,
@@ -664,11 +665,22 @@ def cmd_report(args: argparse.Namespace) -> int:
     with Store(paths.db) as store:
         report, records = _build_comparison(store, args, catalog_map)
         sweep = None
+        sweep_overlay = None
         if args.sweep:
-            sweep = analyze_sweep(store, family=args.sweep_family, latest_per_scenario=not args.all_runs)
+            if getattr(args, "sweep_label", None):
+                from .analyze import build_sweep_overlay
+
+                sweep_overlay = build_sweep_overlay(
+                    store, family=args.sweep_family, labels=args.sweep_label
+                )
+            else:
+                sweep = analyze_sweep(store, family=args.sweep_family, latest_per_scenario=not args.all_runs)
 
     out = Path(args.output) if args.output else paths.reports_dir / f"{report.scenario_key}-{report.baseline_run}-vs-{len(report.candidate_runs)}.html"
-    html = build_html(report, title=args.title, runs=records, sweep=sweep, report_path=out)
+    html = build_html(
+        report, title=args.title, runs=records, sweep=sweep,
+        sweep_overlay=sweep_overlay, report_path=out,
+    )
     write_html(out, html)
     print(f"HTML 报告: {out}")
 
@@ -735,6 +747,28 @@ def cmd_sweep(args: argparse.Namespace) -> int:
     paths = _paths(args)
     catalog_map = _catalog(args)
     with Store(paths.db) as store:
+        if getattr(args, "label", None):
+            from .analyze import build_sweep_overlay
+
+            keys = [get_scenario(k, catalog_map).key for k in (args.scenario or [])]
+            overlay = build_sweep_overlay(
+                store, family=None if keys else args.family,
+                scenario_keys=keys or None, labels=args.label,
+            )
+            if args.json:
+                print(json.dumps(
+                    {lbl: s.to_dict() for lbl, s in overlay},
+                    ensure_ascii=False, indent=2, default=str,
+                ))
+                return EXIT_OK
+            if len(overlay) >= 2:
+                print(render_sweep_compare_console(overlay))
+                print()
+            for label, sweep_report in overlay:
+                print(f"── label: {label}")
+                print(render_sweep_console(sweep_report))
+                print()
+            return EXIT_OK
         keys = [get_scenario(k, catalog_map).key for k in (args.scenario or [])]
         report = analyze_sweep(
             store,
@@ -1278,6 +1312,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", help="同时导出 JSON")
     p.add_argument("--sweep", action="store_true", help="附带并发梯度扫描章节")
     p.add_argument("--sweep-family", default="concurrency")
+    p.add_argument("--sweep-label", action="append", default=[], help="双部署叠加：每 label 一条曲线（可重复）")
     p.add_argument("--all-runs", action="store_true", help="扫描时使用全部 run（默认每个场景取最新）")
     p.set_defaults(func=cmd_report)
 
@@ -1286,6 +1321,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common(p)
     p.add_argument("--scenario", action="append", help="指定参与扫描的场景（可重复）")
     p.add_argument("--family", default="concurrency")
+    p.add_argument("--label", action="append", default=[], help="只看这些 label（可重复; ≥2 时输出叠加对比）")
     p.add_argument("--all-runs", action="store_true")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_sweep)
