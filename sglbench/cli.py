@@ -105,6 +105,30 @@ def _scenario(args: argparse.Namespace, key: str) -> Scenario:
     return get_scenario(key, _catalog(args))
 
 
+def _wait_healthy(scenario: Scenario, *, timeout_s: float = 900.0, interval_s: float = 20.0) -> bool:
+    """轮询 router 直到一次小请求返回 200（崩溃重建后自愈等待；agent/auto-retry 复用）。"""
+    import time
+    import urllib.request
+
+    url = (scenario.base_url or scenario.endpoint).rstrip("/") + "/v1/chat/completions"
+    payload = json.dumps(
+        {"model": scenario.model, "messages": [{"role": "user", "content": "hi"}], "max_tokens": 1}
+    ).encode()
+    deadline = time.time() + max(60.0, timeout_s)
+    while time.time() < deadline:
+        try:
+            req = urllib.request.Request(url, data=payload, headers={"Content-Type": "application/json"})
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                if resp.status == 200:
+                    _eprint("  [healthy]")
+                    return True
+        except Exception:  # noqa: BLE001
+            pass
+        time.sleep(interval_s)
+    _eprint("  [wait_healthy 超时]")
+    return False
+
+
 def _eprint(*parts: Any) -> None:
     print(*parts, file=sys.stderr)
 
@@ -197,23 +221,33 @@ def cmd_run(args: argparse.Namespace) -> int:
         if repeats > 1:
             label = f"{label}#{index + 1}"
         _eprint(f"[{index + 1}/{repeats}] 执行 {scenario.key} …")
-        outcome = run_scenario(
-            paths,
-            scenario,
-            label=label,
-            notes=args.notes or "",
-            tags=args.tag,
-            run_id=args.run_id if repeats == 1 else None,
-            python=args.python,
-            module=args.module,
-            detail_flag=args.detail_flag,
-            dump_requests=not args.no_dump_requests,
-            timeout=timeout,
-            overrides=None,
-            exec_env=exec_env,
-            env_file=getattr(args, "env_file", None),
-            on_line=None if args.quiet else (lambda line: _eprint(f"  | {line}") if args.verbose else None),
-        )
+        attempt = 0
+        while True:
+            outcome = run_scenario(
+                paths,
+                scenario,
+                label=label,
+                notes=args.notes or "",
+                tags=args.tag,
+                run_id=args.run_id if repeats == 1 and attempt == 0 else None,
+                python=args.python,
+                module=args.module,
+                detail_flag=args.detail_flag,
+                dump_requests=not args.no_dump_requests,
+                timeout=timeout,
+                overrides=None,
+                exec_env=exec_env,
+                env_file=getattr(args, "env_file", None),
+                on_line=None if args.quiet else (lambda line: _eprint(f"  | {line}") if args.verbose else None),
+            )
+            if outcome.record.status == "ok" or attempt >= int(getattr(args, "auto_retry", 0) or 0):
+                break
+            attempt += 1
+            _eprint(f"  [auto-retry {attempt}/{args.auto_retry}] 状态={outcome.record.status}，"
+                    f"等待服务健康后重试 …")
+            _wait_healthy(scenario, timeout_s=float(getattr(args, "retry_wait", 900) or 900))
+        if attempt:
+            outcome.record.notes = (outcome.record.notes or "") + f" [auto-retry x{attempt}]"
         outcomes.append(outcome)
         if store:
             store.save_run(outcome.record)
@@ -929,6 +963,84 @@ def cmd_multiturn(args: argparse.Namespace) -> int:
 
 
 # --------------------------------------------------------------------------- #
+# dashboard（跨场景对比仪表盘）
+# --------------------------------------------------------------------------- #
+
+
+def cmd_dashboard(args: argparse.Namespace) -> int:
+    from .dashboard import write_dashboard
+
+    paths = _paths(args)
+    label_pairs = [p.split("=", 1) for p in (args.pair or []) if "=" in p]
+    run_pairs = [p.split("=", 1) for p in (args.run_pair or []) if "=" in p]
+    if not label_pairs and not run_pairs:
+        raise UsageError("至少给一个 --pair <labelA>=<labelB> 或 --run-pair <runA>=<runB>")
+    with Store(paths.db) as store:
+        out = Path(args.output) if args.output else paths.reports_dir / "dashboard.html"
+        target = write_dashboard(
+            store, out,
+            label_pairs=label_pairs, run_pairs=run_pairs,
+            title=args.title, note=args.notes or "",
+        )
+    print(f"Dashboard: {target}")
+    return EXIT_OK
+
+
+# --------------------------------------------------------------------------- #
+# status（agent 健康快照）
+# --------------------------------------------------------------------------- #
+
+
+def cmd_status(args: argparse.Namespace) -> int:
+    """集群 + DB 的 JSON 健康快照（agent 决策入口; 只读非侵入）。"""
+    import urllib.request
+
+    paths = _paths(args)
+    snap: dict[str, Any] = {"generated_at": iso(utcnow())}
+    # DB 概况
+    try:
+        with Store(paths.db, read_only=True) as store:
+            snap["db"] = {
+                "runs": store.count_runs(),
+                "latest_run": store.scalar(
+                    "SELECT run_id FROM runs ORDER BY started_at DESC NULLS LAST LIMIT 1"
+                ),
+                "recent_ok_24h": store.scalar(
+                    "SELECT COUNT(*) FROM runs WHERE status='ok' "
+                    "AND started_at >= now() - INTERVAL 24 HOUR"
+                ),
+            }
+    except Exception as exc:  # noqa: BLE001
+        snap["db"] = {"error": str(exc)}
+    # 集群连通（router /v1/models, 非侵入）
+    from .scenarios import ROUTER
+    router = args.router or ROUTER
+    try:
+        with urllib.request.urlopen(router.rstrip("/") + "/v1/models", timeout=5) as resp:
+            snap["router"] = {"url": router, "http": resp.status, "ok": resp.status == 200}
+    except Exception as exc:  # noqa: BLE001
+        snap["router"] = {"url": router, "ok": False, "error": f"{type(exc).__name__}: {exc}"}
+    # leader 连通（候选节点探测, 不依赖 k8s）
+    leaders: dict[str, Any] = {}
+    for role, nodes, port in (("prefill", ("10.66.3.29", "10.66.3.31", "10.66.3.36", "10.66.3.28"), 8000),
+                              ("decode", ("10.66.3.35", "10.66.3.34", "10.66.3.33", "10.66.3.32"), 8200)):
+        found = None
+        for node in nodes:
+            try:
+                with urllib.request.urlopen(f"http://{node}:{port}/v1/models", timeout=2) as resp:
+                    if resp.status == 200:
+                        found = f"{node}:{port}"
+                        break
+            except Exception:  # noqa: BLE001
+                continue
+        leaders[role] = found
+    snap["leaders"] = leaders
+
+    print(json.dumps(snap, ensure_ascii=False, indent=2, default=str))
+    return EXIT_OK if snap.get("router", {}).get("ok") else EXIT_FAIL
+
+
+# --------------------------------------------------------------------------- #
 # 解析器
 # --------------------------------------------------------------------------- #
 
@@ -984,6 +1096,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--tag", action="append", default=[], help="标签（可重复）")
     p.add_argument("--run-id", help="指定 run_id（做 CI 固定 ID 时有用）")
     p.add_argument("--repeat", type=int, default=1, help="重复执行次数（做方差研究）")
+    p.add_argument("--auto-retry", type=int, default=0, metavar="N",
+                   help="非 ok 时自动等待服务健康并重试 ≤N 次（崩溃自愈; agent 友好）")
+    p.add_argument("--retry-wait", type=float, default=900.0, metavar="SEC",
+                   help="--auto-retry 每次等待健康的超时秒数（默认 900）")
     p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="覆盖场景参数，如 max_concurrency=64")
     p.add_argument("--python", help="解释器（默认 python3）")
     p.add_argument("--module", default=BENCH_MODULE)
@@ -1018,6 +1134,24 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-store", action="store_true")
     p.add_argument("--json", action="store_true")
     p.set_defaults(func=cmd_multiturn)
+
+    # dashboard（跨场景对比仪表盘）
+    p = sub.add_parser("dashboard", help="跨场景对比 dashboard（趋势图+表格, 直读 DuckDB）")
+    _add_common(p)
+    p.add_argument("--pair", action="append", metavar="A=B",
+                   help="按 label 配对（各取最新 ok run，按 scenario_key 对齐；可重复）")
+    p.add_argument("--run-pair", action="append", metavar="RUN_A=RUN_B",
+                   help="按精确 run_id 配对（可重复）")
+    p.add_argument("--title", help="页面标题")
+    p.add_argument("--notes", help="页面说明文字")
+    p.add_argument("-o", "--output", help="输出 HTML 路径（默认 <home>/reports/dashboard.html）")
+    p.set_defaults(func=cmd_dashboard)
+
+    # status（agent 健康快照）
+    p = sub.add_parser("status", help="集群+DB 健康快照（JSON; agent 决策入口, 只读非侵入）")
+    _add_common(p)
+    p.add_argument("--router", help="router URL（默认取场景常量）")
+    p.set_defaults(func=cmd_status)
 
     # ingest
     p = sub.add_parser("ingest", help="导入已有日志")
