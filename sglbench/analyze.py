@@ -842,36 +842,34 @@ def analyze_sweep(
     family: str | None = None,
     latest_per_scenario: bool = True,
     group_key: str = "concurrency",
+    labels: Sequence[str] | None = None,
 ) -> SweepReport:
     """把同一"规模维度"的多次 run 串成一条曲线，找吞吐上限与最优并发出水线。
 
     ``latest_per_scenario=True`` 时每个场景只取最新一次 run，避免重复点。
+    ``labels`` 给定时只看这些 label 的 run（双部署叠加对比用；同时修正
+    "latest 不区分 label 可能取错 run"的问题）。
     """
     keys = [k for k in (scenario_keys or []) if k]
     if not keys and family is not None:
         keys = _scenario_keys_for_family(store, family)
+    label_set = set(labels) if labels else None
 
     if keys:
         summaries: list[RunSummary] = []
         for key in keys:
+            rows = store.list_runs(scenario_key=key, with_metrics=True)
+            if label_set is not None:
+                rows = [r for r in rows if r.label in label_set]
             if latest_per_scenario:
-                rid = store.latest_run(key)
-                run = store.get_run(rid, with_samples=False) if rid else None
-                if run:
-                    summaries.append(
-                        RunSummary(
-                            run_id=run.run_id,
-                            scenario_key=run.scenario_key,
-                            label=run.label,
-                            status=run.status,
-                            started_at=run.started_at,
-                            metrics=run.metrics,
-                        )
-                    )
+                if rows:
+                    summaries.append(rows[0])  # 已按 started_at 倒序
             else:
-                summaries.extend(store.list_runs(scenario_key=key, with_metrics=True))
+                summaries.extend(rows)
     else:
         candidates = store.list_runs(with_metrics=True)
+        if label_set is not None:
+            candidates = [s for s in candidates if s.label in label_set]
         if latest_per_scenario:
             seen: dict[str, RunSummary] = {}
             for s in candidates:  # 已按时间倒序
@@ -949,6 +947,20 @@ def analyze_sweep(
             f"（并发 {report.knee.max_concurrency:g}）之后吞吐增益明显放缓而延迟继续抬升。"
         )
     return report
+
+
+def build_sweep_overlay(
+    store: Store,
+    *,
+    family: str | None = None,
+    scenario_keys: Sequence[str] | None = None,
+    labels: Sequence[str],
+) -> list[tuple[str, SweepReport]]:
+    """每个 label 一条并发梯度曲线（同一 family/场景集）——双部署叠加对比数据。"""
+    return [
+        (lbl, analyze_sweep(store, family=family, scenario_keys=scenario_keys, labels=[lbl]))
+        for lbl in labels
+    ]
 
 
 # --------------------------------------------------------------------------- #

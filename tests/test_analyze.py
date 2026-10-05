@@ -9,6 +9,7 @@ from sglbench.analyze import (
     DEFAULT_THRESHOLD_PCT,
     analyze_sweep,
     analyze_trend,
+    build_sweep_overlay,
     check_comparability,
     compare_metrics,
     compare_runs,
@@ -337,6 +338,55 @@ class TestSweep(unittest.TestCase):
         point = sweep_point(run)
         self.assertEqual(point.max_concurrency, 64.0)
         self.assertTrue(point.healthy)
+
+
+class TestSweepLabels(unittest.TestCase):
+    KEYS = ["conc-32-standard", "conc-64-standard"]
+
+    def _seed_two_labels(self, store: Store) -> None:
+        for label, ttft_at32 in (("l2off", 4.0), ("l2pp1", 2.0)):
+            for key, conc, rate in (("conc-32-standard", 32.0, 4.0), ("conc-64-standard", 64.0, 6.0)):
+                store.save_run(
+                    RunRecord(
+                        run_id=f"{label}-{key}", scenario_key=key, label=label, status="ok",
+                        started_at=utcnow(),
+                        metrics={
+                            "max_request_concurrency": conc,
+                            "traffic_request_rate": rate,
+                            "mean_ttft_ms": ttft_at32 * conc / 32.0,
+                            "p99_ttft_ms": ttft_at32 * conc / 16.0,
+                            "mean_tpot_ms": 25.0,
+                            "p99_tpot_ms": 30.0,
+                            "total_token_throughput_tok_s": 10000.0,
+                            "output_token_throughput_tok_s": 3300.0,
+                            "success_rate": 1.0,
+                        },
+                        params={"num_prompts": 50, "max_concurrency": int(conc)},
+                    )
+                )
+
+    def test_sweep_labels_filter(self) -> None:
+        with temp_home() as paths, Store(paths.db) as store:
+            self._seed_two_labels(store)
+            only_on = analyze_sweep(store, scenario_keys=self.KEYS, labels=["l2pp1"])
+            self.assertEqual({p.label for p in only_on.points}, {"l2pp1"})
+            self.assertEqual(len(only_on.points), 2)
+            only_off = analyze_sweep(store, scenario_keys=self.KEYS, labels=["l2off"])
+            self.assertEqual({p.label for p in only_off.points}, {"l2off"})
+            # 不带 labels 行为不变：latest_per_scenario=False 时所有 run 各成一点
+            both = analyze_sweep(store, scenario_keys=self.KEYS, latest_per_scenario=False)
+            self.assertEqual(len(both.points), 4)
+
+    def test_build_sweep_overlay(self) -> None:
+        with temp_home() as paths, Store(paths.db) as store:
+            self._seed_two_labels(store)
+            overlay = build_sweep_overlay(
+                store, scenario_keys=self.KEYS, labels=["l2off", "l2pp1"]
+            )
+            self.assertEqual([lbl for lbl, _ in overlay], ["l2off", "l2pp1"])
+            a = {p.max_concurrency: p for p in overlay[0][1].points}
+            b = {p.max_concurrency: p for p in overlay[1][1].points}
+            self.assertAlmostEqual(a[32.0].mean_ttft_ms / b[32.0].mean_ttft_ms, 2.0)
 
 
 class TestSmallHelpers(unittest.TestCase):
