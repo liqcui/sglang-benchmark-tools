@@ -624,6 +624,40 @@ def _samples_map(runs: Sequence[Any]) -> dict[str, dict[str, list[float]]]:
     return out
 
 
+def _round_chart_cards(report: ComparisonReport, width: int = 1160) -> list[str]:
+    """逐轮 TTFT 曲线 + Δ 表（multiturn run 才产出；否则空列表）。"""
+    base_view = next((r for r in report.runs if r.role == "baseline"), None)
+    cand_views = [r for r in report.runs if r.role == "candidate"]
+    if base_view is None or not cand_views:
+        return []
+    cand_view = cand_views[0]
+    x, series = round_series(
+        base_view.metrics, cand_view.metrics,
+        base_name=base_view.display, cand_name=cand_view.display,
+    )
+    if not x:
+        return []
+    chart = line_chart(
+        [float(v) for v in x], series,
+        title="逐轮 TTFT 均值",
+        xlabel="轮次", ylabel="TTFT", unit="ms",
+        width=width, height=360, annotate_points=False,
+        subtitle="round0 冷 → round1 首次热 → 稳态；断崖越深命中越充分。"
+                 "本引擎 cache_hit_rate 恒 0（测量限制），看 TTFT 断崖。",
+    )
+    rows = round_delta_rows(base_view.metrics, cand_view.metrics)
+    table_html = (
+        "<table><tr><th>轮次</th><th>" + _esc(base_view.display) + "</th><th>" + _esc(cand_view.display)
+        + "</th><th>Δ</th></tr>"
+        + "".join(
+            f"<tr><td>round{rnd:g}</td><td>{b:,.2f}</td><td>{c:,.2f}</td><td>{pct:+.1f}%</td></tr>"
+            for rnd, b, c, pct in rows
+        )
+        + "</table>"
+    )
+    return [chart, table_html]
+
+
 def build_html(
     report: ComparisonReport,
     *,
@@ -768,6 +802,9 @@ def build_html(
                 charts.append(
                     _chart_card(percentile_range_chart(ds, title=f"{chart_title}分位区间", unit="ms"), full=True)
                 )
+
+        for card in _round_chart_cards(report):
+            charts.append(_chart_card(card, full=True))
 
     # ---- 并发梯度 ----
     sweep_html = ""

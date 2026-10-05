@@ -300,5 +300,43 @@ class TestRoundConsole(unittest.TestCase):
         self.assertNotIn("逐轮 TTFT", render_console(report))
 
 
+class TestRoundHtml(unittest.TestCase):
+    def _round_report(self):
+        with temp_home() as paths, Store(paths.db) as store:
+            scenario = get_scenario("hicache-multiturn-20x10")
+            store.upsert_scenarios([scenario])
+            store.save_run(
+                RunRecord(
+                    run_id="mt-base", scenario_key="hicache-multiturn-20x10", label="l2off",
+                    status="ok", started_at=utcnow(),
+                    metrics={**ROUND_METRICS_A, "success_rate": 1.0},
+                )
+            )
+            store.save_run(
+                RunRecord(
+                    run_id="mt-cand", scenario_key="hicache-multiturn-20x10", label="l2pp1",
+                    status="ok", started_at=utcnow(),
+                    metrics={**ROUND_METRICS_B, "success_rate": 1.0},
+                )
+            )
+            return compare_runs(store, ["mt-base", "mt-cand"], scenario=scenario, with_distributions=False)
+
+    def test_round_chart_in_html(self) -> None:
+        html = build_html(self._round_report())
+        self.assertIn("逐轮 TTFT 均值", html)
+        self.assertIn("round1", html)
+        # 曲线图存在且 HTML 结构可解析
+        self.assertIn("<svg", html)
+
+    def test_no_round_chart_without_rounds(self) -> None:
+        with temp_home() as paths, Store(paths.db) as store:
+            seed(store)
+            report = compare_runs(
+                store, ["base", "cand"], scenario=get_scenario("single-standard"),
+                with_distributions=False, resamples=200,
+            )
+        self.assertNotIn("逐轮 TTFT", build_html(report))
+
+
 if __name__ == "__main__":
     unittest.main()
