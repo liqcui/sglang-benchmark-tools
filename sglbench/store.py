@@ -13,6 +13,7 @@
 ``metrics``          长表：``(run_id, metric_key) -> value``
 ``request_samples``  每请求明细（分布分析的原始数据）
 ``samples_meta``      每请求明细的行数（用于判断是否真的落盘了）
+``run_forensics``    崩溃取证摘要（签名/证据目录, agent 归因）
 ``preflight_checks`` 连通性预检记录
 """
 
@@ -28,7 +29,7 @@ from . import __version__
 from .models import Issue, RunRecord, RunSummary, Sample, Scenario
 from .util import iso, parse_iso, utcnow
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 _DDL: tuple[str, ...] = (
     """
@@ -152,6 +153,18 @@ _DDL: tuple[str, ...] = (
         total_ms     DOUBLE,
         output_chars INTEGER,
         detail       VARCHAR
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS run_forensics (
+        run_id          VARCHAR PRIMARY KEY,
+        collected_at    VARCHAR,
+        trigger         VARCHAR,
+        nodes_json      VARCHAR,
+        signatures_json VARCHAR,
+        evidence_dir    VARCHAR,
+        ok              BOOLEAN,
+        notes           VARCHAR
     )
     """,
     """
@@ -711,6 +724,44 @@ class Store:
     def list_preflight(self, limit: int = 20) -> list[dict[str, Any]]:
         return self.query(
             "SELECT * FROM preflight_checks ORDER BY checked_at DESC NULLS LAST LIMIT ?", [limit]
+        )
+
+    # ---- 崩溃取证 ----
+    def save_forensics(
+        self,
+        run_id: str,
+        *,
+        trigger: str,
+        nodes: Any,
+        signatures: Any,
+        evidence_dir: str,
+        ok: bool,
+        notes: str = "",
+    ) -> None:
+        """写取证摘要（DuckDB 自动提交，与 save_preflight 同模式）。"""
+        self.con.execute(
+            "INSERT OR REPLACE INTO run_forensics "
+            "(run_id, collected_at, trigger, nodes_json, signatures_json, evidence_dir, ok, notes) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            [
+                run_id,
+                iso(utcnow()),
+                trigger,
+                json.dumps(nodes, ensure_ascii=False, default=str),
+                json.dumps(signatures, ensure_ascii=False, default=str),
+                evidence_dir,
+                bool(ok),
+                notes,
+            ],
+        )
+
+    def get_forensics(self, run_id: str) -> dict[str, Any] | None:
+        rows = self.query("SELECT * FROM run_forensics WHERE run_id = ?", [run_id])
+        return rows[0] if rows else None
+
+    def list_forensics(self, limit: int = 20) -> list[dict[str, Any]]:
+        return self.query(
+            "SELECT * FROM run_forensics ORDER BY collected_at DESC NULLS LAST LIMIT ?", [limit]
         )
 
     # ---- 导出 ----

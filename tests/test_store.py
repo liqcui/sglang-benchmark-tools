@@ -207,6 +207,34 @@ class TestScenariosAndPreflight(unittest.TestCase):
             self.assertAlmostEqual(rows[0]["ttft_ms"], 42.0)
 
 
+class TestForensics(unittest.TestCase):
+    def test_forensics_roundtrip(self) -> None:
+        with temp_home() as paths, Store(paths.db) as store:
+            self.assertEqual(store.get_forensics("nope"), None)
+            store.save_forensics(
+                "run-1", trigger="auto",
+                nodes=[{"node": "mxgpu-3-31", "host_ip": "10.66.3.31"}],
+                signatures=[{"name": "xnack", "source": "mxgpu-3-31", "line_no": 3, "line": "..."}],
+                evidence_dir="/tmp/ev", ok=True, notes="partial: gpu.txt 缺失",
+            )
+            row = store.get_forensics("run-1")
+            self.assertEqual(row["trigger"], "auto")
+            self.assertTrue(row["ok"])
+            self.assertIn("xnack", row["signatures_json"])
+            self.assertIn("mxgpu-3-31", row["nodes_json"])
+            self.assertEqual(row["evidence_dir"], "/tmp/ev")
+            rows = store.list_forensics(limit=5)
+            self.assertEqual(rows[0]["run_id"], "run-1")
+            # 覆盖写（同 run 重复采集）
+            store.save_forensics(
+                "run-1", trigger="manual", nodes=[], signatures=[],
+                evidence_dir="/tmp/ev2", ok=False, notes="",
+            )
+            self.assertEqual(store.get_forensics("run-1")["trigger"], "manual")
+            self.assertEqual(store.schema_version(), SCHEMA_VERSION)
+            self.assertEqual(SCHEMA_VERSION, 2)
+
+
 class TestExport(unittest.TestCase):
     def test_export_parquet_and_csv(self) -> None:
         with temp_home() as paths, Store(paths.db) as store:
