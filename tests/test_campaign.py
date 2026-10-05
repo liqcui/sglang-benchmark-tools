@@ -1,20 +1,25 @@
 """campaign suite 数据层单测。"""
 from __future__ import annotations
 
+import io
 import json as _json
 import tempfile as _tempfile
 import unittest
+from contextlib import redirect_stdout
 from datetime import datetime, timezone
 from pathlib import Path as _Path
 
 from sglbench.campaign import (
     CampaignSpec,
     ScenarioEntry,
+    ScenarioRunOutcome,
     SideSpec,
     build_suite,
     delta_pct,
     load_spec,
     parse_scenario_entry,
+    render_campaign_plan,
+    run_campaign,
     should_skip,
     verdict_of,
 )
@@ -230,6 +235,69 @@ class CampaignSpecTest(unittest.TestCase):
             # 不同 label / 未知场景 → 不跳过
             self.assertFalse(should_skip(store, ent, SideSpec("B", None)))
             self.assertFalse(should_skip(store, parse_scenario_entry("mini-l2-999x"), SideSpec("A", None)))
+
+
+class CampaignRunTest(unittest.TestCase):
+    def _spec(self):
+        return CampaignSpec(
+            name="t",
+            sides={"baseline": SideSpec("A", None)},
+            scenarios=[
+                ScenarioEntry("mini-l2-64c"),
+                ScenarioEntry("hicache-multiturn-20x10", mode="multiturn", max_parallel=2),
+            ],
+        )
+
+    def test_dry_run_plan(self):
+        with temp_home() as paths, Store(paths.db) as store:
+            result = run_campaign(paths, self._spec(), side="baseline", dry_run=True, store=store)
+        self.assertEqual([o.action for o in result.outcomes], ["run", "run"])
+        self.assertEqual([o.key for o in result.outcomes],
+                         ["mini-l2-64c", "hicache-multiturn-20x10"])
+        text = render_campaign_plan(self._spec(), "baseline",
+                                    [(o.key, o.mode, o.action) for o in result.outcomes])
+        self.assertIn("mini-l2-64c", text)
+        self.assertIn("执行", text)
+
+    def test_skip_and_execute(self):
+        with temp_home() as paths, Store(paths.db) as store:
+            mk_run(store, "r1", scenario="mini-l2-64c", label="A", day=1, metrics={"mean_ttft_ms": 1.0})
+            calls = []
+
+            def bench(entry, side):
+                calls.append(("bench", entry.key, side))
+                return ScenarioRunOutcome(key=entry.key, mode="bench", action="ok", run_id="new-1")
+
+            def mt(entry, side):
+                calls.append(("mt", entry.key, side))
+                return ScenarioRunOutcome(key=entry.key, mode="multiturn", action="failed",
+                                          run_id="new-2", detail="partial")
+
+            with redirect_stdout(io.StringIO()):
+                result = run_campaign(paths, self._spec(), side="baseline", store=store,
+                                      bench_runner=bench, multiturn_runner=mt)
+        self.assertEqual([o.action for o in result.outcomes], ["skipped", "failed"])
+        self.assertEqual(calls, [("mt", "hicache-multiturn-20x10", "A")])
+        self.assertEqual(len(result.failures), 1)
+        self.assertEqual(result.failures[0].key, "hicache-multiturn-20x10")
+
+    def test_only_filter_and_force(self):
+        with temp_home() as paths, Store(paths.db) as store:
+            mk_run(store, "r1", scenario="mini-l2-64c", label="A", day=1, metrics={"mean_ttft_ms": 1.0})
+
+            def bench(entry, side):
+                return ScenarioRunOutcome(key=entry.key, mode="bench", action="ok", run_id="n")
+
+            with redirect_stdout(io.StringIO()):
+                result = run_campaign(paths, self._spec(), side="baseline", only=["mini-*"],
+                                      force=True, store=store, bench_runner=bench)
+        self.assertEqual([o.key for o in result.outcomes], ["mini-l2-64c"])
+        self.assertEqual(result.outcomes[0].action, "ok")  # force 覆盖跳过
+
+    def test_unknown_side_raises(self):
+        with temp_home() as paths, Store(paths.db) as store:
+            with self.assertRaises(ValueError):
+                run_campaign(paths, self._spec(), side="nope", dry_run=True, store=store)
 
 
 if __name__ == "__main__":

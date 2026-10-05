@@ -674,3 +674,180 @@ def should_skip(store: Store, entry: ScenarioEntry, side: SideSpec) -> bool:
     if not env:
         return False  # run 无环境快照 → 无法证明一致, 重跑
     return str(env.get("deployment") or "") == str(want.get("deployment") or "")
+
+
+# --------------------------------------------------------------------------- #
+# 执行器
+# --------------------------------------------------------------------------- #
+
+
+@dataclass
+class ScenarioRunOutcome:
+    key: str
+    mode: str
+    action: str            # skipped / ok / failed / partial
+    run_id: str = ""
+    detail: str = ""
+
+
+@dataclass
+class CampaignResult:
+    side: str
+    outcomes: list[ScenarioRunOutcome] = field(default_factory=list)
+
+    @property
+    def failures(self) -> list[ScenarioRunOutcome]:
+        return [o for o in self.outcomes if o.action in ("failed", "partial")]
+
+
+def _parse_timeout_s(text: str) -> float | None:
+    from .util import parse_duration
+
+    try:
+        return parse_duration(text).total_seconds()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _wait_after_failure(scenario, spec: CampaignSpec) -> None:
+    """重试前：按 spec 决定是否 GPU 复位；随后等健康。"""
+    if spec.gpu_reset:
+        from .recover import run_recovery
+
+        report = run_recovery(from_pods=True, rebuild=True)
+        print(f"  [campaign] gpu-reset: ok={report.ok} nodes={len(report.nodes)}")
+    from .cli import _wait_healthy
+
+    _wait_healthy(scenario, timeout_s=900)
+
+
+def _default_bench_runner(paths, spec: CampaignSpec, side_spec: SideSpec, store):
+    def run(entry: ScenarioEntry, side: str) -> ScenarioRunOutcome:
+        from .runner import ExecEnv, apply_overrides, run_scenario
+        from .scenarios import get_scenario
+
+        scenario = get_scenario(entry.key)
+        if entry.set:
+            scenario = apply_overrides(scenario, entry.set)
+        attempt = 0
+        while True:
+            outcome = run_scenario(
+                paths, scenario, label=side_spec.label,
+                env_file=side_spec.env_file,
+                exec_env=ExecEnv.for_mode(spec.exec),
+                timeout=_parse_timeout_s(spec.timeout),
+            )
+            record = outcome.record
+            if store is not None:
+                store.save_run(record)
+            if record.status == "ok" or attempt >= spec.auto_retry:
+                return ScenarioRunOutcome(
+                    key=entry.key, mode="bench",
+                    action="ok" if record.status == "ok" else record.status,
+                    run_id=record.run_id,
+                )
+            attempt += 1
+            _wait_after_failure(scenario, spec)
+
+    return run
+
+
+def _default_multiturn_runner(paths, spec: CampaignSpec, side_spec: SideSpec, store):
+    def run(entry: ScenarioEntry, side: str) -> ScenarioRunOutcome:
+        from .multiturn import archive_multiturn, run_multiturn
+        from .scenarios import get_scenario
+
+        scenario = get_scenario(entry.key)
+        rounds = int(entry.set.get("rounds", 10))
+        attempt = 0
+        while True:
+            result = run_multiturn(
+                url=scenario.endpoint, model=scenario.model,
+                clients=scenario.num_prompts, rounds=rounds,
+                request_length=scenario.random_input,
+                output_length=scenario.random_output,
+                request_rate=scenario.request_rate,
+                label=side_spec.label, notes="[campaign]",
+                scenario_key=scenario.key,
+                env_file=side_spec.env_file,
+                max_parallel=entry.max_parallel,
+            )
+            rid = ""
+            if store is not None:
+                rid = archive_multiturn(paths, result, store=store, env_file=side_spec.env_file)
+            status = "ok" if (getattr(result, "success_rate", 1.0) or 0.0) >= 0.999 else "partial"
+            if status == "ok" or attempt >= spec.auto_retry:
+                return ScenarioRunOutcome(
+                    key=entry.key, mode="multiturn", action=status, run_id=rid
+                )
+            attempt += 1
+            _wait_after_failure(scenario, spec)
+
+    return run
+
+
+def render_campaign_plan(
+    spec: CampaignSpec, side: str, rows: Sequence[tuple[str, str, str]]
+) -> str:
+    side_spec = spec.sides[side]
+    lines = [
+        f"战役: {spec.name} | side={side} (label={side_spec.label})"
+        f" | exec={spec.exec} | gpu_reset={spec.gpu_reset} | auto_retry={spec.auto_retry}"
+    ]
+    for key, mode, action in rows:
+        mark = "↺ 跳过" if action == "skipped" else "▶ 执行"
+        lines.append(f"  [{mark}] {key} ({mode})")
+    return "\n".join(lines)
+
+
+def run_campaign(
+    paths,
+    spec: CampaignSpec,
+    *,
+    side: str,
+    only: Sequence[str] | None = None,
+    force: bool = False,
+    dry_run: bool = False,
+    store=None,
+    bench_runner=None,
+    multiturn_runner=None,
+) -> CampaignResult:
+    """执行战役一侧：逐场景（可跳过已有）→ 注入式 runner 便于测试。
+
+    ``only``：fnmatch 过滤场景 key；``force``：不用跳过决策。
+    """
+    from fnmatch import fnmatch
+
+    if side not in spec.sides:
+        raise ValueError(f"未知 side: {side}（可选: {', '.join(spec.sides)}）")
+    side_spec = spec.sides[side]
+    entries = [e for e in spec.scenarios if not only or any(fnmatch(e.key, p) for p in only)]
+    result = CampaignResult(side=side)
+
+    rows: list[tuple[str, str, str]] = []
+    for entry in entries:
+        skip = (not force) and store is not None and should_skip(store, entry, side_spec)
+        rows.append((entry.key, entry.mode, "skipped" if skip else "run"))
+    if dry_run:
+        result.outcomes = [
+            ScenarioRunOutcome(key=k, mode=m, action=("skipped" if a == "skipped" else "run"))
+            for k, m, a in rows
+        ]
+        return result
+
+    print(render_campaign_plan(spec, side, rows))
+    bench = bench_runner or _default_bench_runner(paths, spec, side_spec, store)
+    mt = multiturn_runner or _default_multiturn_runner(paths, spec, side_spec, store)
+    for entry, (_k, _m, action) in zip(entries, rows):
+        if action == "skipped":
+            print(f"  ↺ {entry.key} 已有 ok run，跳过（--force 重跑）")
+            result.outcomes.append(
+                ScenarioRunOutcome(key=entry.key, mode=entry.mode, action="skipped")
+            )
+            continue
+        print(f"  ▶ {entry.key} ({entry.mode}) …")
+        fn = mt if entry.mode == "multiturn" else bench
+        outcome = fn(entry, side_spec.label)
+        print(f"    → {outcome.action} {outcome.run_id} {outcome.detail}".rstrip())
+        result.outcomes.append(outcome)
+    return result
