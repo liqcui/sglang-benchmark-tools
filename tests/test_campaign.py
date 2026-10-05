@@ -96,6 +96,32 @@ class CampaignDataTest(unittest.TestCase):
             self.assertTrue(any("劣化" in c for c in suite.conclusions))
             self.assertTrue(any("round1" in c for c in suite.conclusions))
 
+    def test_duplicate_keys_and_multiturn_marker(self) -> None:
+        with temp_home() as paths, Store(paths.db) as store:
+            seed_pair(store)
+            # 同 scenario 的第二 rate 变体（经 run-pair 明确指定）
+            mk_run(store, "off-32b", scenario="mini-l2-32c", label="A-bd", day=3, env=BASE_ENV,
+                   metrics={"mean_ttft_ms": 8000.0, "total_token_throughput_tok_s": 3000.0,
+                            "success_rate": 1.0})
+            mk_run(store, "on-32b", scenario="mini-l2-32c", label="B-bd", day=4, env=ON_ENV,
+                   metrics={"mean_ttft_ms": 9000.0, "total_token_throughput_tok_s": 2900.0,
+                            "success_rate": 1.0})
+            suite = build_suite(store, label_pairs=[("A", "B")], run_pairs=[["off-32b", "on-32b"]])
+
+            mini_titles = [s.title for s in suite.summaries if s.key == "mini-l2-32c"]
+            self.assertEqual(len(mini_titles), 2)
+            self.assertTrue(all(t != "mini-l2-32c" and "[" in t for t in mini_titles))
+
+            smt = next(s for s in suite.summaries if s.key.startswith("hicache-multiturn"))
+            self.assertTrue(smt.is_multiturn)
+
+            from sglbench.campaign import render_suite_html, render_suite_markdown
+
+            html = render_suite_html(suite, report_links={s.title: "x.html" for s in suite.summaries})
+            self.assertIn("多轮·见④", html)
+            md = render_suite_markdown(suite)
+            self.assertIn("多轮·见 §4", md)
+
     def test_render_suite_html(self) -> None:
         from sglbench.campaign import render_suite_html
 

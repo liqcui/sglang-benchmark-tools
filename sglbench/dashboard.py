@@ -35,11 +35,19 @@ DEFAULT_METRICS: list[tuple[str, str, str, bool]] = [
 ]
 
 
+def _label_cond(label: str) -> tuple[str, str]:
+    """label → SQL 条件片段与参数。尾部 ``*`` 表示前缀通配（如 ``l2off-opt*``）。"""
+    if label.endswith("*"):
+        return "label LIKE ?", label[:-1] + "%"
+    return "label = ?", label
+
+
 def _latest_ok_run(store: Store, label: str) -> dict[str, Any] | None:
+    cond, param = _label_cond(label)
     rows = store.query(
-        "SELECT run_id, scenario_key, label, started_at FROM runs "
-        "WHERE label = ? AND status = 'ok' ORDER BY started_at DESC NULLS LAST LIMIT 1",
-        [label],
+        f"SELECT run_id, scenario_key, label, started_at FROM runs "
+        f"WHERE {cond} AND status = 'ok' ORDER BY started_at DESC NULLS LAST LIMIT 1",
+        [param],
     )
     return rows[0] if rows else None
 
@@ -68,20 +76,22 @@ def resolve_pairs(
         if not off or not on:
             continue
         # 两 label 下所有 ok run, 按 scenario_key 配对 (各取最新)
+        off_cond, off_param = _label_cond(off_label)
+        on_cond, on_param = _label_cond(on_label)
         off_runs = {
             r["scenario_key"]: r
             for r in store.query(
-                "SELECT run_id, scenario_key, status FROM runs WHERE label = ? AND status='ok' "
+                f"SELECT run_id, scenario_key, status FROM runs WHERE {off_cond} AND status='ok' "
                 "ORDER BY started_at ASC NULLS LAST",
-                [off_label],
+                [off_param],
             )
         }
         on_runs = {
             r["scenario_key"]: r
             for r in store.query(
-                "SELECT run_id, scenario_key, status FROM runs WHERE label = ? AND status='ok' "
+                f"SELECT run_id, scenario_key, status FROM runs WHERE {on_cond} AND status='ok' "
                 "ORDER BY started_at ASC NULLS LAST",
-                [on_label],
+                [on_param],
             )
         }
         for key in off_runs:

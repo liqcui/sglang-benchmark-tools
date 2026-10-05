@@ -294,6 +294,28 @@ class TestCli(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertIn("mean_ttft_ms", out)
 
+    def test_campaign_report_command(self) -> None:
+        with temp_home() as paths:
+            logs = prepare_logs(paths)
+            run_cli("ingest", "--home", str(paths.home), str(logs), "--infer")
+            out_dir = paths.home / "suite"
+            code, out, err = run_cli(
+                "campaign", "report", "--home", str(paths.home),
+                "--pair", "baseline=candidate", "-o", str(out_dir),
+            )
+            self.assertEqual(code, 0, err)
+            self.assertIn("index", out)
+            self.assertTrue((out_dir / "index.html").exists())
+            self.assertTrue((out_dir / "SUMMARY.md").exists())
+            idx = (out_dir / "index.html").read_text(encoding="utf-8")
+            self.assertIn("受控条件", idx)
+            # 缺 --pair/--run-pair → 用法错误（UsageError → 退出码 2）
+            code, _out, err = run_cli(
+                "campaign", "report", "--home", str(paths.home), "-o", str(out_dir)
+            )
+            self.assertEqual(code, 2)
+            self.assertIn("--pair", err)
+
 
 if __name__ == "__main__":
     unittest.main()

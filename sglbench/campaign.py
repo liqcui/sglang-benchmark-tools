@@ -68,6 +68,20 @@ class ScenarioSummary:
     status_on: str = "ok"
     verdict: str = "—"
     round_verdict: dict[str, Any] | None = None
+    display: str = ""  # 展示名（同 scenario 多 rate 变体时带 label 区分; 空=用 key）
+
+    @property
+    def title(self) -> str:
+        return self.display or self.key
+
+    @property
+    def is_multiturn(self) -> bool:
+        """无压测指标但有逐轮指标 → 多轮场景。"""
+        return (
+            self.round_verdict is not None
+            and self.off.get("mean_ttft_ms") is None
+            and self.on.get("mean_ttft_ms") is None
+        )
 
 
 @dataclass
@@ -108,12 +122,30 @@ def build_suite(
     pt = pt or ("A", "B")
     names = _scenario_names(store, [str(p["name"]) for p in pairs])
 
+    # 同 scenario_key 多 rate 变体（如 bd256r16/bd256r32 共用 conc-256-deepseek）→
+    # 展示名带 label 区分，文件编号天然唯一。
+    from collections import Counter
+
+    key_counts = Counter(str(p["name"]) for p in pairs)
+    run_labels: dict[str, str] = {}
+    if any(v > 1 for v in key_counts.values()):
+        run_ids = [p["off_run"] for p in pairs] + [p["on_run"] for p in pairs]
+        rows = store.query(
+            "SELECT run_id, label FROM runs WHERE run_id IN ("
+            + ",".join("?" * len(run_ids)) + ")",
+            run_ids,
+        )
+        run_labels = {r["run_id"]: r["label"] or "" for r in rows}
+
     summaries: list[ScenarioSummary] = []
     for p in sorted(pairs, key=lambda x: str(x["name"])):
         key = str(p["name"])
         off_m, on_m = p["metrics_off"], p["metrics_on"]
         t = delta_pct(off_m.get("mean_ttft_ms"), on_m.get("mean_ttft_ms"))
         rv = round_verdict(off_m, on_m)
+        display = ""
+        if key_counts[key] > 1:
+            display = f"{key} [{run_labels.get(p['off_run'], '?')} / {run_labels.get(p['on_run'], '?')}]"
         summaries.append(
             ScenarioSummary(
                 key=key,
@@ -126,6 +158,7 @@ def build_suite(
                 status_on=str(p.get("status_on", "ok")),
                 verdict=verdict_of(t, higher_better=False),
                 round_verdict=(rv if rv["verdict"] != "无逐轮数据" else None),
+                display=display,
             )
         )
 
@@ -173,19 +206,19 @@ def suite_conclusions(suite: SuiteData) -> list[str]:
             else:
                 flat += 1
             if abs(d) >= 10.0:
-                notable.append(f"{s.key} {d:+.1f}%")
+                notable.append(f"{s.title} {d:+.1f}%")
         if good or bad or flat:
             line = f"{disp}: 改善 {good} / 劣化 {bad} / 持平 {flat}（±{DEFAULT_THRESHOLD_PCT:g}% 阈值）"
             if notable:
                 line += "；显著项(|Δ|≥10%): " + "、".join(notable)
             out.append(line)
-    ok_bad = [s.key for s in suite.summaries if s.status_off != "ok" or s.status_on != "ok"]
+    ok_bad = [s.title for s in suite.summaries if s.status_off != "ok" or s.status_on != "ok"]
     if ok_bad:
         out.append("稳定性: 以下场景存在非 ok run —— " + "、".join(ok_bad))
     elif suite.summaries:
         out.append(f"稳定性: {len(suite.summaries)} 个场景两侧全部 ok。")
     rounds_hi = [
-        f"{s.key} round1 {s.round_verdict['round1_pct']:+.1f}%"
+        f"{s.title} round1 {s.round_verdict['round1_pct']:+.1f}%"
         for s in suite.summaries
         if s.round_verdict and s.round_verdict.get("round1_pct") is not None
         and s.round_verdict["round1_pct"] <= -10
@@ -218,6 +251,16 @@ def _delta_text(d: float | None) -> str:
     return "—" if d is None else f"{d:+.1f}%"
 
 
+def _scenario_cell_html(s: ScenarioSummary) -> str:
+    tag = "（多轮·见④）" if s.is_multiturn else ""
+    return html.escape(s.title + tag)
+
+
+def _scenario_cell_md(s: ScenarioSummary) -> str:
+    tag = "（多轮·见 §4）" if s.is_multiturn else ""
+    return f"{s.title}{tag}"
+
+
 def _delta_color(d: float | None, higher_better: bool) -> str:
     if d is None:
         return "#666"
@@ -245,7 +288,7 @@ def _summary_table(suite: SuiteData) -> str:
         t = delta_pct(s.off.get("mean_ttft_ms"), s.on.get("mean_ttft_ms"))
         p = delta_pct(s.off.get("mean_tpot_ms"), s.on.get("mean_tpot_ms"))
         rows.append(
-            f"<tr><td>{html.escape(s.key)}</td>"
+            f"<tr><td>{_scenario_cell_html(s)}</td>"
             f"<td>{html.escape(_fmt(s.off.get('mean_ttft_ms'), 'ms'))} → "
             f"{html.escape(_fmt(s.on.get('mean_ttft_ms'), 'ms'))}</td>"
             f'<td style="color:{_delta_color(t, False)}">{_delta_text(t)}</td>'
@@ -274,7 +317,7 @@ def _throughput_table(suite: SuiteData) -> str:
     )
     rows = []
     for s in suite.summaries:
-        cells = [f"<td>{html.escape(s.key)}</td>"]
+        cells = [f"<td>{_scenario_cell_html(s)}</td>"]
         for key, _disp, higher in THROUGHPUT_KEYS:
             d = delta_pct(s.off.get(key), s.on.get(key))
             cells.append(
@@ -293,7 +336,7 @@ def _round_table(suite: SuiteData) -> str:
         if not rv:
             continue
         rows.append(
-            f"<tr><td>{html.escape(s.key)}</td>"
+            f"<tr><td>{html.escape(s.title)}</td>"
             f'<td style="color:{_delta_color(rv.get("round0_pct"), False)}">{_delta_text(rv.get("round0_pct"))}</td>'
             f'<td style="color:{_delta_color(rv.get("round1_pct"), False)}">{_delta_text(rv.get("round1_pct"))}</td>'
             f'<td style="color:{_delta_color(rv.get("steady_pct"), False)}">{_delta_text(rv.get("steady_pct"))}</td>'
@@ -310,7 +353,7 @@ def _round_table(suite: SuiteData) -> str:
 def _stability_table(suite: SuiteData) -> str:
     a, b = suite.pair_titles
     rows = "".join(
-        f"<tr><td>{html.escape(s.key)}</td><td>{html.escape(s.status_off)}</td>"
+        f"<tr><td>{html.escape(s.title)}</td><td>{html.escape(s.status_off)}</td>"
         f"<td>{html.escape(s.status_on)}</td></tr>"
         for s in suite.summaries
     )
@@ -324,7 +367,7 @@ def _suite_charts(suite: SuiteData) -> list[str]:
     from .rounds import round_series
     from .svgchart import grouped_bar_chart, heatmap_chart, line_chart
 
-    cats = [s.key for s in suite.summaries]
+    cats = [s.title for s in suite.summaries]
     charts: list[str] = []
     heat_vals = [
         [
@@ -364,7 +407,7 @@ def _suite_charts(suite: SuiteData) -> list[str]:
             continue
         charts.append(
             line_chart(
-                [float(v) for v in x], series, title=f"{s.key} · 逐轮 TTFT",
+                [float(v) for v in x], series, title=f"{s.title} · 逐轮 TTFT",
                 xlabel="轮次", ylabel="TTFT", unit="ms", width=1160, height=320,
                 annotate_points=False,
                 subtitle="本引擎 cache_hit_rate 恒 0（测量限制）——看 TTFT 断崖",
@@ -382,9 +425,9 @@ def render_suite_html(
     links = dict(report_links or {})
     a, b = suite.pair_titles
     nav = " · ".join(
-        f'<a href="{html.escape(links[s.key])}">{html.escape(s.key)} 明细</a>'
+        f'<a href="{html.escape(links[s.title])}">{html.escape(s.title)} 明细</a>'
         for s in suite.summaries
-        if s.key in links
+        if s.title in links
     )
     conclusions = "".join(f"<li>{html.escape(c)}</li>" for c in suite.conclusions)
     charts_html = "".join(f'<div class="card">{c}</div>' for c in _suite_charts(suite))
@@ -441,7 +484,7 @@ def render_suite_markdown(suite: SuiteData) -> str:
         t = delta_pct(s.off.get("mean_ttft_ms"), s.on.get("mean_ttft_ms"))
         p = delta_pct(s.off.get("mean_tpot_ms"), s.on.get("mean_tpot_ms"))
         lines.append(
-            f"| {s.key} | {_fmt(s.off.get('mean_ttft_ms'), 'ms')}→{_fmt(s.on.get('mean_ttft_ms'), 'ms')} "
+            f"| {_scenario_cell_md(s)} | {_fmt(s.off.get('mean_ttft_ms'), 'ms')}→{_fmt(s.on.get('mean_ttft_ms'), 'ms')} "
             f"| {_delta_text(t)} | {_fmt(s.off.get('mean_tpot_ms'), 'ms')}→{_fmt(s.on.get('mean_tpot_ms'), 'ms')} "
             f"| {_delta_text(p)} | {s.verdict} |"
         )
@@ -451,7 +494,7 @@ def render_suite_markdown(suite: SuiteData) -> str:
         "|---|---|---|---|---|---|---|---|---|",
     ]
     for s in suite.summaries:
-        cells = [s.key]
+        cells = [_scenario_cell_md(s)]
         for key, _disp, _higher in THROUGHPUT_KEYS:
             d = delta_pct(s.off.get(key), s.on.get(key))
             cells += [f"{_fmt(s.off.get(key), 'tok/s')}→{_fmt(s.on.get(key), 'tok/s')}", _delta_text(d)]
@@ -466,12 +509,12 @@ def render_suite_markdown(suite: SuiteData) -> str:
         for s in mt:
             rv = s.round_verdict or {}
             lines.append(
-                f"| {s.key} | {_delta_text(rv.get('round0_pct'))} | {_delta_text(rv.get('round1_pct'))} "
+                f"| {s.title} | {_delta_text(rv.get('round0_pct'))} | {_delta_text(rv.get('round1_pct'))} "
                 f"| {_delta_text(rv.get('steady_pct'))} | {rv.get('verdict')} |"
             )
     lines += ["", "## 5. 稳定性", ""]
     for s in suite.summaries:
-        lines.append(f"- {s.key}: {a}={s.status_off} / {b}={s.status_on}")
+        lines.append(f"- {s.title}: {a}={s.status_off} / {b}={s.status_on}")
     lines += ["", "## 6. 结论（自动草稿）", ""]
     lines += [f"- {c}" for c in suite.conclusions]
     return "\n".join(lines) + "\n"
@@ -501,18 +544,18 @@ def write_suite(
     reports: dict[str, Path] = {}
     for i, s in enumerate(suite.summaries):
         fname = f"{i + 1:02d}-{s.key}.html"
-        links[s.key] = fname
+        links[s.title] = fname
         recs = [store.get_run(r, with_samples=True) for r in (s.off_run, s.on_run)]
         recs = [r for r in recs if r is not None]
         scenario = scenario_for_run(recs[0]) if recs else None
         comparison = compare_runs(store, [s.off_run, s.on_run], baseline=s.off_run, scenario=scenario)
         html = build_html(
             comparison, runs=recs,
-            title=f"{s.key} · {suite.pair_titles[0]} vs {suite.pair_titles[1]}",
+            title=f"{s.title} · {suite.pair_titles[0]} vs {suite.pair_titles[1]}",
             report_path=target / fname,
         )
         write_html(target / fname, html)
-        reports[s.key] = target / fname
+        reports[s.title] = target / fname
 
     index_path = target / "index.html"
     write_html(index_path, render_suite_html(suite, report_links=links))

@@ -1062,6 +1062,27 @@ def cmd_dashboard(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
+def cmd_campaign_report(args: argparse.Namespace) -> int:
+    from .campaign import write_suite
+
+    paths = _paths(args)
+    label_pairs = [tuple(p.split("=", 1)) for p in (args.pair or []) if "=" in p]
+    run_pairs = [tuple(p.split("=", 1)) for p in (args.run_pair or []) if "=" in p]
+    if not label_pairs and not run_pairs:
+        raise UsageError("至少给一个 --pair <labelA>=<labelB> 或 --run-pair <runA>=<runB>")
+    with Store(paths.db) as store:
+        result = write_suite(
+            store, args.output,
+            label_pairs=label_pairs, run_pairs=run_pairs,
+            title=args.title, with_md=not args.no_md,
+        )
+    print(f"index : {result['index']}")
+    if result["summary_md"]:
+        print(f"综述  : {result['summary_md']}")
+    print(f"明细  : {len(result['reports'])} 份（{args.output}/NN-*.html）")
+    return EXIT_OK
+
+
 # --------------------------------------------------------------------------- #
 # status（agent 健康快照）
 # --------------------------------------------------------------------------- #
@@ -1231,6 +1252,20 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--notes", help="页面说明文字")
     p.add_argument("-o", "--output", help="输出 HTML 路径（默认 <home>/reports/dashboard.html）")
     p.set_defaults(func=cmd_dashboard)
+
+    # campaign —— 战役：汇总报告（run 执行器见后续版本）
+    p = sub.add_parser("campaign", help="战役：完整测试报告（index + SUMMARY.md + 每场景明细）")
+    csub = p.add_subparsers(dest="campaign_cmd", required=True)
+    cr = csub.add_parser("report", help="跨场景完整测试报告（对标手工 TEST-REPORT-*.md）")
+    _add_common(cr)
+    cr.add_argument("--pair", action="append", default=[], metavar="A=B",
+                    help="label 配对（各取最新 ok run，按 scenario_key 对齐；可重复）")
+    cr.add_argument("--run-pair", action="append", default=[], metavar="OFF=ON",
+                    help="按精确 run_id 配对（可重复）")
+    cr.add_argument("--title", help="报告标题")
+    cr.add_argument("-o", "--output", required=True, help="输出目录")
+    cr.add_argument("--no-md", action="store_true", help="不生成 SUMMARY.md")
+    cr.set_defaults(func=cmd_campaign_report)
 
     # status（agent 健康快照）
     p = sub.add_parser("status", help="集群+DB 健康快照（JSON; agent 决策入口, 只读非侵入）")
