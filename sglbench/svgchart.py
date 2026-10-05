@@ -705,3 +705,166 @@ def join_charts(*charts: str, gap: int = 14) -> str:
 
 def series_from_values(name: str, values: Iterable[float], index: int = 0) -> dict[str, object]:
     return {"name": name, "values": list(values), "color": color_for(index)}
+
+
+# --------------------------------------------------------------------------- #
+# Δ 热图（战役汇总报告用）
+# --------------------------------------------------------------------------- #
+
+
+def _heat_shade(delta: float, higher_better: bool) -> tuple[str, str]:
+    """(底色, 字色)。按方向归一后：正=改善绿系，负=劣化红系。"""
+    oriented = delta if higher_better else -delta
+    a = abs(oriented)
+    if a <= 3.0:
+        return "#f1f5f9", "#475569"
+    if oriented > 0:
+        if a <= 10:
+            return "#bbf7d0", "#166534"
+        if a <= 30:
+            return "#86efac", "#14532d"
+        return "#16a34a", "#ffffff"
+    if a <= 10:
+        return "#fecaca", "#991b1b"
+    if a <= 30:
+        return "#fca5a5", "#7f1d1d"
+    return "#dc2626", "#ffffff"
+
+
+def heatmap_chart(
+    row_labels: Sequence[str],
+    col_labels: Sequence[str],
+    values: Sequence[Sequence[float | None]],
+    *,
+    title: str,
+    subtitle: str = "",
+    better_dirs: Sequence[bool] | None = None,
+    formats: Sequence[str] | None = None,
+    width: int = 1160,
+    cell_h: int = 34,
+    label_w: int = 240,
+) -> str:
+    """Δ 热图：行=场景，列=指标。绿=改善、红=劣化（|Δ|≤3% 中性）。"""
+    n_rows, n_cols = len(row_labels), len(col_labels)
+    if not n_rows or not n_cols:
+        return _empty_chart(title, "没有可绘制的数据", width=width, height=240)
+    better = list(better_dirs or [True] * n_cols)
+    fmts = list(formats or ["{:+.1f}%"] * n_cols)
+    top = 64 if subtitle else 48
+    cell_w = max(90.0, (width - label_w - 24.0) / n_cols)
+    height = int(top + n_rows * cell_h + 34)
+    body: list[str] = [
+        f'<text x="{label_w:.0f}" y="24" font-size="14" font-weight="600" fill="#1e293b">{_esc(title)}</text>'
+    ]
+    if subtitle:
+        body.append(f'<text x="{label_w:.0f}" y="42" font-size="11" fill="#64748b">{_esc(subtitle)}</text>')
+    for j, cl in enumerate(col_labels):
+        x = label_w + j * cell_w + cell_w / 2
+        body.append(
+            f'<text x="{x:.1f}" y="{top - 8}" text-anchor="middle" font-size="11.5" fill="#334155">{_esc(cl)}</text>'
+        )
+    for i, rl in enumerate(row_labels):
+        y = top + i * cell_h
+        body.append(
+            f'<text x="{label_w - 10:.0f}" y="{y + cell_h * 0.68:.1f}" text-anchor="end" '
+            f'font-size="11.5" fill="#334155">{_esc(rl)}</text>'
+        )
+        for j in range(n_cols):
+            v = values[i][j] if i < len(values) and j < len(values[i]) else None
+            x = label_w + j * cell_w
+            if v is None:
+                fill, ink, text = "#f8fafc", "#94a3b8", "—"
+            else:
+                fill, ink = _heat_shade(float(v), better[j])
+                text = fmts[j].format(float(v))
+            body.append(
+                f'<rect x="{x:.1f}" y="{y:.1f}" width="{cell_w - 2:.1f}" height="{cell_h - 2:.1f}" '
+                f'fill="{fill}" rx="4"><title>{_esc(rl)} · {_esc(col_labels[j])}: {_esc(text)}</title></rect>'
+            )
+            body.append(
+                f'<text x="{x + cell_w / 2:.1f}" y="{y + cell_h * 0.68:.1f}" text-anchor="middle" '
+                f'font-size="11" fill="{ink}">{_esc(text)}</text>'
+            )
+    body.append(
+        f'<text x="{label_w:.0f}" y="{height - 8}" font-size="10.5" fill="#64748b">'
+        f"绿=改善 红=劣化（|Δ|≤3% 中性；方向已按指标归一）</text>"
+    )
+    return _doc(width, height, title, subtitle, "".join(body))
+
+
+# --------------------------------------------------------------------------- #
+# 跨 run 趋势（回归跟踪）
+# --------------------------------------------------------------------------- #
+
+
+def trend_chart(
+    x_labels: Sequence[str],
+    series: Sequence[Mapping[str, object]],
+    *,
+    title: str,
+    ylabel: str = "",
+    unit: str = "",
+    width: int = 1160,
+    height: int = 320,
+    subtitle: str = "",
+) -> str:
+    """跨 run 趋势：ok 点实心、非 ok 点白心红圈。x 为等距时间标签。"""
+    n = len(x_labels)
+    if n == 0 or not series:
+        return _empty_chart(title, "没有可绘制的数据", width=width, height=height)
+    all_values = [float(v) for s in series for v in (s.get("values") or []) if v is not None]
+    if not all_values:
+        return _empty_chart(title, "没有可绘制的数值", width=width, height=height)
+    x_lo, x_hi = 0.0, float(max(n - 1, 1))
+    y_lo = min(0.0, min(all_values))
+    y_hi = max(all_values) * 1.15 or 1.0
+    frame = Frame(width, height, (x_lo, x_hi), (y_lo, y_hi))
+    y_ticks = nice_ticks(y_lo, y_hi)
+    body = [frame.grid(y_ticks, []), frame.y_axis(y_ticks), frame.y_label(ylabel, unit)]
+    step = max(1, n // 12)
+    for i, lbl in enumerate(x_labels):
+        if i % step:
+            continue
+        tx = frame.sx(float(i))
+        body.append(
+            f'<text x="{tx:.1f}" y="{frame.y0 + 18:.1f}" text-anchor="end" '
+            f'font-size="10" fill="#475569" transform="rotate(-30 {tx:.1f} {frame.y0 + 18:.1f})">'
+            f"{_esc(lbl)}</text>"
+        )
+    for si, s in enumerate(series):
+        color = str(s.get("color") or color_for(si))
+        values = list(s.get("values") or [])
+        statuses = list(s.get("statuses") or [])
+        pts = [(float(i), float(v)) for i, v in enumerate(values) if v is not None]
+        if not pts:
+            continue
+        body.append(
+            f'<polyline points="{" ".join(f"{frame.sx(x):.1f},{frame.sy(v):.1f}" for x, v in pts)}" '
+            f'fill="none" stroke="{color}" stroke-width="2.2" stroke-linejoin="round"/>'
+        )
+        for i, v in enumerate(values):
+            if v is None:
+                continue
+            status = str(statuses[i]) if i < len(statuses) else "ok"
+            x, y = frame.sx(float(i)), frame.sy(float(v))
+            if status == "ok":
+                body.append(
+                    f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3.6" fill="{color}" stroke="#ffffff" '
+                    f'stroke-width="1.4"><title>{_esc(x_labels[i])} · {_esc(str(s.get("name")))}: '
+                    f"{float(v):.6g}</title></circle>"
+                )
+            else:
+                body.append(
+                    f'<circle cx="{x:.1f}" cy="{y:.1f}" r="4.2" fill="#ffffff" stroke="#dc2626" '
+                    f'stroke-width="1.8"><title>{_esc(x_labels[i])} · {_esc(str(s.get("name")))} · '
+                    f"status={status}: {float(v):.6g}</title></circle>"
+                )
+    legend_y = 56 if subtitle else 40
+    body.append(
+        legend(
+            [(str(s.get("name")), str(s.get("color") or color_for(i))) for i, s in enumerate(series)],
+            frame.x0,
+            legend_y,
+        )
+    )
+    return _doc(width, height, title, subtitle, "".join(body))
