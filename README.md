@@ -96,6 +96,19 @@ sglbench sweep   --family concurrency
 sglbench report  --scenario single-standard --last 2 --sweep -o report.html
 ```
 
+### 新能力速览（2026-10）
+
+| 能力 | 一句话 | 入口 |
+|---|---|---|
+| 多轮逐轮曲线 | HiCache 冷热断崖（round0→round1→稳态）自动进入 compare/report/dashboard | `multiturn` 后 `compare`/`report` 自动附加 |
+| 完整战役报告 | 一条命令产出对标手工 TEST-REPORT 的全套（index+SUMMARY.md+每场景明细+Δ 热图+结论） | `campaign report --pair 'A*=B*' -o DIR/` |
+| 战役执行器 | spec 驱动多场景执行；已有数据自动跳过；收尾自动出报告 | `campaign run campaigns/l2-full.json --side S` |
+| 指标趋势 | 跨 run 回归跟踪（换镜像/驱动前后） | `trend --scenario K --html out.html` |
+| 双部署叠加 | 并发梯度扫描两侧同图对比（TTFT/吞吐双线） | `sweep --label A --label B` |
+| 崩溃自愈 | 崩溃 → GPU 热复位（ssh mx-smi）→ 重建 → 等健康 → 重跑（显式开启） | `run --auto-retry 3 --gpu-reset` |
+| 崩溃取证 | 非 ok 自动采集现场（pods/events/节点日志/GPU）+ xnack/mv0x4 等签名入库 | 自动；`forensics <run_id>` 手动补采 |
+| Agent 接口 | MCP 13 tools + OpenClaw 生成式 Skill 包（一键 install.sh） | `sglbench mcp`；`integrations/openclaw/` |
+
 ---
 
 ## 4. 内置场景：6 个标准场景 × 2 个模型（GLM / DeepSeek）
@@ -198,9 +211,17 @@ sglbench run --scenario conc-128-safe --set max_concurrency=96 --set request_rat
 | `sglbench ingest PATH... [--infer]` | 导入已有日志（幂等：内容相同则跳过） |
 | `sglbench list [--scenario K] [--family F] [--status S]` | 历史 run 列表 |
 | `sglbench show RUN` | 单个 run 的指标、分布、门禁、异常日志 |
-| `sglbench compare RUN... \| --scenario K --last N` | 对比分析（`--format table\|markdown\|json`） |
-| `sglbench sweep [--family concurrency]` | 并发梯度扫描：吞吐上限、拐点、安全水位 |
-| `sglbench report ... -o out.html [--sweep]` | 生成自包含 HTML（可同时导出 Markdown / JSON） |
+| `sglbench compare RUN... \| --scenario K --last N` | 对比分析（`--format table\|markdown\|json`；multiturn run 自动附加**逐轮 TTFT 表**） |
+| `sglbench sweep [--family concurrency] [--label A --label B]` | 并发梯度扫描：吞吐上限、拐点、安全水位；双 label 输出**叠加对比**（双线图） |
+| `sglbench report ... -o out.html [--sweep] [--sweep-label A --sweep-label B]` | 生成自包含 HTML（可同时导出 Markdown / JSON） |
+| `sglbench dashboard --pair A=B -o out.html` | 跨场景对比仪表盘（multiturn 场景自动附加**多轮断崖曲线**） |
+| `sglbench campaign report --pair 'A*=B*' -o DIR/ [--no-md]` | **完整战役报告**：index.html（受控条件差异/Δ 热图/全表/断崖曲线/结论）+ SUMMARY.md + 每场景明细 |
+| `sglbench campaign run <spec.json> --side S [--only P] [--force] [--dry-run] [--report-dir D]` | **战役执行器**：逐场景执行（已有 ok run 且 env 指纹一致自动跳过；`--dry-run` 先看计划；收尾自动出完整报告） |
+| `sglbench trend --scenario K [--label L]... [--metric M]... [--html out]` | **指标趋势时间线**（跨 run 回归跟踪；非 ok run 空心红圈标记） |
+| `sglbench recover [--from-pods\|--node X] [--gpus 0,4\|all] [--dry-run] [--no-rebuild]` | **GPU 热复位+pod 重建**（ssh mx-smi；显式触发；`--dry-run` 先看计划） |
+| `sglbench forensics <run_id> [--json]` | **崩溃取证**（pods/events/节点日志/GPU 采集 + xnack/mv0x4 等签名提取；非 ok run 自动触发） |
+| `sglbench status [--json]` | 集群+DB 健康快照（agent 决策入口） |
+| `sglbench mcp` | MCP server（stdio, **13 个 tools**; 供 OpenClaw 等 agent 框架直调） |
 | `sglbench gate --scenario K [--set-sla max_p99_ttft_ms=2000]` | SLA 判定，失败退出码 1 |
 | `sglbench export [-o DIR] [--format parquet\|csv\|json]` | 归档导出（parquet 便于丢进 BI） |
 | `sglbench sql "SELECT ..."` | 直接查 DuckDB |
@@ -233,8 +254,10 @@ DuckDB 表：
 |---|---|
 | `scenarios` | 场景定义快照 + 参数指纹 |
 | `runs` | 每次 test run 的元数据、参数、环境、工件索引 |
-| `metrics` | 长表 `(run_id, metric_key) -> value`，约 52 项指标 |
+| `metrics` | 长表 `(run_id, metric_key) -> value`，约 52 项指标（含逐轮 `round<N>_*`） |
 | `request_samples` | 每请求 `ttft/tpot/itl/e2e/input_len/output_len/status/error` |
+| `run_environments` | 部署环境快照（拓扑/镜像/HiCache 参数/MACA 版本，31 列结构化） |
+| `run_forensics` | 崩溃取证摘要（签名/证据目录/采集方式，agent 可直接 SQL 归因） |
 | `preflight_checks` | 预检记录 |
 | `v_run_metrics` | 便于手写 SQL 的宽表视图 |
 

@@ -18,9 +18,10 @@
 |---|---|---|
 | `scenarios` | **测试用例定义快照**（key 是稳定标识，跨环境可比） | scenario_key, family, spec_json |
 | `runs` | 每次执行（含环境标签、参数、状态、指纹） | run_id, scenario_key, label, status, params_json, meta_json |
-| `metrics` | 长表指标（TTFT/TPOT/吞吐/成功率/逐轮 TTFT…） | run_id, metric_key, value |
+| `metrics` | 长表指标（TTFT/TPOT/吞吐/成功率/**逐轮 TTFT**…） | run_id, metric_key, value |
 | `request_samples` | 每请求明细（分布分析原始数据） | run_id, seq, ttft_ms, tpot_ms, status |
 | **`run_environments`** | **部署环境快照（2026-10-04 新增）** | 节点数/GPU 数/TP/DP/PP/镜像/launch_mode/**HiCache 全套参数**/MACA 版本 |
+| **`run_forensics`** | **崩溃取证摘要（2026-10-06 新增, schema v2）** | run_id, trigger, signatures_json, evidence_dir, ok |
 | `preflight_checks` | 压测前连通性预检 | target, ok, ttft_ms |
 | `v_run_metrics` | 视图：run × metric 拉平 | — |
 
@@ -87,5 +88,26 @@ sglbench sql "SELECT r.scenario_key, r.label, e.deployment, e.hicache_ratio,
 - **OpenClaw 集成包**（`integrations/openclaw/`）：MCP 注册示例 + Skill 包
   （`skills/sglbench/SKILL.md`）+ Shell 直调规范 → 小龙虾（OpenClaw）三种接入方式。
 
-后续方向（未实现）：崩溃自愈循环内嵌 GPU 复位（mx-smi 需宿主权限，当前留人工/外部）；
-自动环境捕获扩展（mx-smi/kubectl 驱动版本、GPU 健康纳入快照）。
+**2026-10-06 已落地（三域扩展：可视化 / agent 闭环 / MCP 13 tools / OpenClaw 生成式）**：
+
+- **可视化**：`rounds.py` 逐轮曲线（compare/report/dashboard 三层自动附加，补上
+  HiCache 最核心信号断崖）；`campaign report` 完整战役报告（index.html 受控条件/
+  Δ 热图/吞吐宽表/断崖曲线/结论 + SUMMARY.md + 每场景明细，对标手工 TEST-REPORT）；
+  `trend` 跨 run 趋势时间线；`sweep --label A --label B` 双部署叠加；label 前缀
+  通配配对（`--pair 'A*=B*'`，批后缀不对称一键全配）。
+- **崩溃自愈闭环**：`recover`（ssh 节点 → `mx-smi -y -r -i 0/-i 4` 热复位 → 删 pod
+  重建 → 验证）+ `run/multiturn --auto-retry N --gpu-reset`（**显式开启**，未开启
+  行为不变）。通道实测：本机免密 ssh 全部节点 + sudo 免密 mx-smi。
+- **崩溃取证**：非 ok run 自动采集（pods/events/节点日志 tail/GPU 状态）+ 10 类
+  签名提取（xnack(0x8)/memory violation(0x4)/MCCL wrong-magic…）→ `run_forensics`
+  表（schema v2）；`forensics <run_id>` 手动补采；`show` 显示摘要。
+- **战役执行器**：`campaign run <spec.json> --side S`——spec 驱动、已有 ok run 且
+  env 指纹一致自动跳过（label 前缀匹配 + deployment 指纹守卫）、`--dry-run` 先看
+  计划、收尾自动出完整报告。campaign 执行器**不进 MCP**（长任务，CLI-only）。
+- **MCP 7 → 13 tools**：+report/rounds/campaign_report/trend/forensics/recover；
+  `recover` 两段式（`dry_run` 默认 true 先计划，显式 false 才执行）。
+- **OpenClaw 生成式包**：`tools/gen_openclaw_skill.py`（场景目录 + 命令参考自动
+  渲染，规范段在 `RULES.md`，同步测试防漂移）+ `install.sh --workspace` 一键安装。
+
+后续方向（未实现）：自动环境捕获扩展（mx-smi/kubectl 驱动版本、GPU 健康纳入
+快照）；llm-d 侧 skill（`sglbench-hicache-testing`）同步新命令面。
