@@ -258,5 +258,47 @@ class TestCharts(unittest.TestCase):
         ET.fromstring(svg)
 
 
+ROUND_METRICS_A = {f"round{r}_mean_ttft_ms": v for r, v in {0: 606.0, 1: 5178.0, 2: 1600.0, 3: 1700.0}.items()}
+ROUND_METRICS_B = {f"round{r}_mean_ttft_ms": v for r, v in {0: 656.0, 1: 1410.0, 2: 1650.0, 3: 1720.0}.items()}
+
+
+class TestRoundConsole(unittest.TestCase):
+    def _round_report(self):
+        with temp_home() as paths, Store(paths.db) as store:
+            scenario = get_scenario("hicache-multiturn-20x10")
+            store.upsert_scenarios([scenario])
+            store.save_run(
+                RunRecord(
+                    run_id="mt-base", scenario_key="hicache-multiturn-20x10", label="l2off",
+                    status="ok", started_at=utcnow(),
+                    metrics={**ROUND_METRICS_A, "success_rate": 1.0},
+                )
+            )
+            store.save_run(
+                RunRecord(
+                    run_id="mt-cand", scenario_key="hicache-multiturn-20x10", label="l2pp1",
+                    status="ok", started_at=utcnow(),
+                    metrics={**ROUND_METRICS_B, "success_rate": 1.0},
+                )
+            )
+            return compare_runs(store, ["mt-base", "mt-cand"], scenario=scenario, with_distributions=False)
+
+    def test_round_block_appears(self) -> None:
+        text = render_console(self._round_report())
+        self.assertIn("逐轮 TTFT", text)
+        self.assertIn("round1", text)
+        self.assertIn("-72.8", text)  # (1410-5178)/5178 = -72.77% → 一位小数舍入
+        self.assertIn("✅ round1 改善", text)
+
+    def test_round_block_absent_without_rounds(self) -> None:
+        with temp_home() as paths, Store(paths.db) as store:
+            seed(store)
+            report = compare_runs(
+                store, ["base", "cand"], scenario=get_scenario("single-standard"),
+                with_distributions=False, resamples=200,
+            )
+        self.assertNotIn("逐轮 TTFT", render_console(report))
+
+
 if __name__ == "__main__":
     unittest.main()

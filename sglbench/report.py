@@ -20,6 +20,7 @@ from .analyze import (
     spec_for,
 )
 from .models import DISTRIBUTION_METRICS, Sample
+from .rounds import round_delta_rows, round_series, round_verdict
 from .svgchart import (
     PALETTE,
     cdf_chart,
@@ -135,6 +136,50 @@ def _metric_rows(rows: Sequence[MetricComparison]) -> list[list[str]]:
     return out
 
 
+def _round_console_block(report: ComparisonReport) -> str | None:
+    """multiturn run 的逐轮 TTFT 段（无逐轮数据返回 None）。"""
+    base_view = next((r for r in report.runs if r.role == "baseline"), None)
+    cand_views = [r for r in report.runs if r.role == "candidate"]
+    if base_view is None or not cand_views:
+        # role 未标注时退化为首 run 对剩余（兼容手工构造的 report）
+        if len(report.runs) < 2:
+            return None
+        base_view = report.runs[0]
+        cand_views = list(report.runs[1:])
+    cand_view = cand_views[0]
+    rows = round_delta_rows(base_view.metrics, cand_view.metrics)
+    if not rows:
+        return None
+    table_rows = [
+        [
+            f"round{rnd:g}",
+            f"{b:,.2f}",
+            f"{c:,.2f}",
+            f"{pct:+.1f}%",
+            "✅" if pct <= -10 else ("❌" if pct >= 10 else "➖"),
+        ]
+        for rnd, b, c, pct in rows
+    ]
+    v = round_verdict(base_view.metrics, cand_view.metrics)
+    parts = []
+    if v["round1_pct"] is not None:
+        parts.append(
+            f"round1（首次热）Δ {v['round1_pct']:+.1f}% · 稳态 Δ {v['steady_pct']:+.1f}% · {v['verdict']}"
+        )
+    parts.append("注：本引擎不填 usage.cached_tokens，cache_hit_rate 恒 0——命中判据看 round1 起的 TTFT 断崖。")
+    if len(cand_views) > 1:
+        parts.append(f"（候选多于一个，逐轮仅对比 {cand_view.display}）")
+    return (
+        render_table(
+            ["轮次", f"{base_view.display} (ms)", f"{cand_view.display} (ms)", "Δ", "判定"],
+            table_rows,
+            ["left", "right", "right", "right", "left"],
+        )
+        + "\n"
+        + "\n".join(parts)
+    )
+
+
 def render_console(report: ComparisonReport, *, max_rows: int | None = None) -> str:
     """给 CLI 用的纯文本对比视图。"""
     parts: list[str] = []
@@ -213,6 +258,12 @@ def render_console(report: ComparisonReport, *, max_rows: int | None = None) -> 
         parts.append(render_table(["run", "门禁项", "实测", "阈值", "结果"], grows, ["left", "left", "right", "right", "left"]))
         summary = report.gate_summary()
         parts.append(f"门禁汇总: PASS={summary.get('pass', 0)}  FAIL={summary.get('fail', 0)}  N/A={summary.get('unknown', 0)}")
+
+    round_block = _round_console_block(report)
+    if round_block:
+        parts.append("")
+        parts.append("── 逐轮 TTFT（多轮对话） " + "─" * 52)
+        parts.append(round_block)
 
     if report.conclusions:
         parts.append("")
