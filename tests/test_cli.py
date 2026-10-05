@@ -287,6 +287,47 @@ class TestCli(unittest.TestCase):
             self.assertIn("10.66.3.29", out)
             self.assertIn("计划", out)
 
+    def test_gpu_reset_gate(self) -> None:
+        from unittest import mock
+
+        from sglbench import cli as cli_mod
+
+        args = type("A", (), {"gpu_reset": False})()
+        with redirect_stderr(io.StringIO()):
+            self.assertIsNone(cli_mod._maybe_gpu_recover(args))  # 未开启 → 不动作
+
+        called = {}
+
+        def fake_run_recovery(**kw):
+            called.update(kw)
+
+            class R:
+                ok = True
+                nodes = []
+                notes = []
+
+            return R()
+
+        with mock.patch("sglbench.recover.run_recovery", side_effect=fake_run_recovery):
+            args = type("A", (), {"gpu_reset": True})()
+            with redirect_stderr(io.StringIO()):
+                text = cli_mod._maybe_gpu_recover(args)
+        self.assertTrue(called.get("from_pods"))
+        self.assertTrue(called.get("rebuild"))
+        self.assertIsNotNone(text)
+
+    def test_run_gpu_reset_flag_parses(self) -> None:
+        code, out, _ = run_cli("run", "--scenario", "conc-128-safe", "--dry-run", "--gpu-reset")
+        self.assertEqual(code, 0)  # dry-run 只预览, 不触发恢复
+        from sglbench.cli import build_parser
+
+        args = build_parser().parse_args(
+            ["multiturn", "--scenario", "hicache-multiturn-20x10", "--gpu-reset", "--auto-retry", "2"]
+        )
+        self.assertTrue(args.gpu_reset)
+        args = build_parser().parse_args(["run", "--scenario", "conc-128-safe"])
+        self.assertFalse(args.gpu_reset)  # 默认关闭
+
     def test_trend_command(self) -> None:
         with temp_home() as paths:
             logs = prepare_logs(paths)

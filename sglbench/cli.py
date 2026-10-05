@@ -131,6 +131,23 @@ def _wait_healthy(scenario: Scenario, *, timeout_s: float = 900.0, interval_s: f
     return False
 
 
+def _maybe_gpu_recover(args: argparse.Namespace) -> str | None:
+    """崩溃自愈的硬件阶段（仅 --gpu-reset 显式开启时触发）。
+
+    复位异常 pod 所在节点的 GPU（默认 -i 0 + -i 4），随后删除异常 pod 由 LWS 重建。
+    返回一行摘要（未开启返回 None）。
+    """
+    if not getattr(args, "gpu_reset", False):
+        return None
+    from .recover import render_recovery_report, run_recovery
+
+    _eprint("  [gpu-reset] 检测异常 pod → GPU 热复位 → 重建 …")
+    report = run_recovery(from_pods=True, rebuild=True)
+    summary = render_recovery_report(report)
+    _eprint("  [gpu-reset] " + summary.replace("\n", "\n  [gpu-reset] "))
+    return summary
+
+
 def _eprint(*parts: Any) -> None:
     print(*parts, file=sys.stderr)
 
@@ -247,6 +264,7 @@ def cmd_run(args: argparse.Namespace) -> int:
             attempt += 1
             _eprint(f"  [auto-retry {attempt}/{args.auto_retry}] 状态={outcome.record.status}，"
                     f"等待服务健康后重试 …")
+            _maybe_gpu_recover(args)
             _wait_healthy(scenario, timeout_s=float(getattr(args, "retry_wait", 900) or 900))
         if attempt:
             outcome.record.notes = (outcome.record.notes or "") + f" [auto-retry x{attempt}]"
@@ -1022,6 +1040,7 @@ def cmd_multiturn(args: argparse.Namespace) -> int:
             break
         attempt += 1
         _eprint(f"  [auto-retry {attempt}/{max_retry}] 状态={result.status}，等待服务健康后重试 …")
+        _maybe_gpu_recover(args)
         _wait_healthy(scenario)
     if store:
         archive_multiturn(paths, result, store=store, env_file=getattr(args, "env_file", None))
@@ -1224,6 +1243,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--repeat", type=int, default=1, help="重复执行次数（做方差研究）")
     p.add_argument("--auto-retry", type=int, default=0, metavar="N",
                    help="非 ok 时自动等待服务健康并重试 ≤N 次（崩溃自愈; agent 友好）")
+    p.add_argument("--gpu-reset", action="store_true",
+                   help="崩溃重试前自动 GPU 热复位+重建（与 --auto-retry 配合; 硬件级动作）")
     p.add_argument("--retry-wait", type=float, default=900.0, metavar="SEC",
                    help="--auto-retry 每次等待健康的超时秒数（默认 900）")
     p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="覆盖场景参数，如 max_concurrency=64")
@@ -1255,6 +1276,8 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--max-parallel", type=int, help="最大并发活跃客户端数（对齐官方 --max-parallel；不设=全并发+轮栅栏）")
     p.add_argument("--auto-retry", type=int, default=0, metavar="N",
                    help="非 ok 时自动等待服务健康并重试 ≤N 次（崩溃自愈）")
+    p.add_argument("--gpu-reset", action="store_true",
+                   help="崩溃重试前自动 GPU 热复位+重建（与 --auto-retry 配合; 硬件级动作）")
     p.add_argument("--timeout-s", type=float, default=600.0, help="单请求超时秒数")
     p.add_argument("--label", help="run 标签（默认场景 key）")
     p.add_argument("--notes")
