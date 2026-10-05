@@ -96,6 +96,20 @@ class CampaignDataTest(unittest.TestCase):
             self.assertTrue(any("劣化" in c for c in suite.conclusions))
             self.assertTrue(any("round1" in c for c in suite.conclusions))
 
+    def test_render_suite_html(self) -> None:
+        from sglbench.campaign import render_suite_html
+
+        with temp_home() as paths, Store(paths.db) as store:
+            seed_pair(store)
+            suite = build_suite(store, label_pairs=[("A", "B")])
+        links = {s.key: f"{i + 1:02d}-{s.key}.html" for i, s in enumerate(suite.summaries)}
+        html = render_suite_html(suite, report_links=links)
+        for needle in (
+            "受控条件", "压测场景汇总", "吞吐量完整对比", "多轮对话", "稳定性", "结论",
+            "Δ 热图", "<svg", "01-", "round1", "⚠差异",
+        ):
+            self.assertIn(needle, html)
+
 
 if __name__ == "__main__":
     unittest.main()

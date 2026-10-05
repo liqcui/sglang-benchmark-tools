@@ -6,12 +6,14 @@ index.html / SUMMARY.md / 每场景明细 由 write_suite 落盘。
 """
 from __future__ import annotations
 
+import html
 from dataclasses import dataclass, field
 from typing import Any, Mapping, Sequence
 
 from .analyze import DEFAULT_THRESHOLD_PCT
 from .rounds import round_verdict
 from .store import Store
+from .util import format_metric as _fmt
 
 # 受控条件表展示列（run_environments 列名 → 中文显示名）
 ENV_DISPLAY_KEYS: list[tuple[str, str]] = [
@@ -190,3 +192,232 @@ def suite_conclusions(suite: SuiteData) -> list[str]:
     if rounds_hi:
         out.append("多轮冷热转换（round1）显著改善: " + "、".join(rounds_hi) + "。")
     return out
+
+
+# --------------------------------------------------------------------------- #
+# suite HTML / Markdown（index + SUMMARY.md）
+# --------------------------------------------------------------------------- #
+
+_CSS = """
+body{font-family:system-ui,-apple-system,sans-serif;margin:24px auto;max-width:1220px;padding:0 16px;color:#222;background:#fafafa}
+h1{font-size:22px} h2{font-size:17px;margin-top:28px}
+.card{background:#fff;border:1px solid #e3e3e3;border-radius:10px;padding:12px;margin:14px 0;overflow-x:auto}
+.charts{display:grid;grid-template-columns:1fr;gap:14px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{border:1px solid #e0e0e0;padding:5px 8px;text-align:right}
+th{background:#f4f6f8;text-align:center} td:first-child,th:first-child{text-align:left}
+tr.diff td{background:#fff7ed} tr.diff td:first-child{font-weight:600}
+a{color:#2563eb;text-decoration:none}
+.note{color:#666;font-size:13px;line-height:1.7}
+ul{margin:6px 0 0 18px;padding:0;font-size:13px;line-height:1.8}
+"""
+
+
+def _delta_text(d: float | None) -> str:
+    return "—" if d is None else f"{d:+.1f}%"
+
+
+def _delta_color(d: float | None, higher_better: bool) -> str:
+    if d is None:
+        return "#666"
+    good = d >= DEFAULT_THRESHOLD_PCT if higher_better else d <= -DEFAULT_THRESHOLD_PCT
+    bad = d <= -DEFAULT_THRESHOLD_PCT if higher_better else d >= DEFAULT_THRESHOLD_PCT
+    return "#1a7f37" if good else ("#c62828" if bad else "#666")
+
+
+def _env_table(suite: SuiteData) -> str:
+    a, b = suite.pair_titles
+    rows = "".join(
+        f'<tr class="{"diff" if diff else ""}"><td>{html.escape(name)}'
+        f'{" ⚠差异" if diff else ""}</td><td>{html.escape(va)}</td><td>{html.escape(vb)}</td></tr>'
+        for name, va, vb, diff in suite.env_rows
+    )
+    return (
+        f"<table><tr><th>项</th><th>{html.escape(a)}</th><th>{html.escape(b)}</th></tr>{rows}</table>"
+    )
+
+
+def _summary_table(suite: SuiteData) -> str:
+    a, b = suite.pair_titles
+    rows = []
+    for s in suite.summaries:
+        t = delta_pct(s.off.get("mean_ttft_ms"), s.on.get("mean_ttft_ms"))
+        p = delta_pct(s.off.get("mean_tpot_ms"), s.on.get("mean_tpot_ms"))
+        rows.append(
+            f"<tr><td>{html.escape(s.key)}</td>"
+            f"<td>{html.escape(_fmt(s.off.get('mean_ttft_ms'), 'ms'))} → "
+            f"{html.escape(_fmt(s.on.get('mean_ttft_ms'), 'ms'))}</td>"
+            f'<td style="color:{_delta_color(t, False)}">{_delta_text(t)}</td>'
+            f"<td>{html.escape(_fmt(s.off.get('mean_tpot_ms'), 'ms'))} → "
+            f"{html.escape(_fmt(s.on.get('mean_tpot_ms'), 'ms'))}</td>"
+            f'<td style="color:{_delta_color(p, False)}">{_delta_text(p)}</td>'
+            f"<td>{s.verdict}</td></tr>"
+        )
+    return (
+        f"<table><tr><th rowspan=2>场景</th><th colspan=2>TTFT</th><th colspan=2>TPOT</th>"
+        f"<th rowspan=2>判定</th></tr><tr><th>{html.escape(a)} → {html.escape(b)}</th><th>Δ</th>"
+        f"<th>{html.escape(a)} → {html.escape(b)}</th><th>Δ</th></tr>" + "".join(rows) + "</table>"
+    )
+
+
+def _throughput_table(suite: SuiteData) -> str:
+    a, b = suite.pair_titles
+    head = (
+        "<tr><th rowspan=2>场景</th>"
+        + "".join(f"<th colspan=2>{html.escape(disp)}</th>" for _k, disp, _h in THROUGHPUT_KEYS)
+        + "</tr><tr>"
+        + "".join(
+            f"<th>{html.escape(a)} → {html.escape(b)}</th><th>Δ</th>" for _k, _d, _h in THROUGHPUT_KEYS
+        )
+        + "</tr>"
+    )
+    rows = []
+    for s in suite.summaries:
+        cells = [f"<td>{html.escape(s.key)}</td>"]
+        for key, _disp, higher in THROUGHPUT_KEYS:
+            d = delta_pct(s.off.get(key), s.on.get(key))
+            cells.append(
+                f"<td>{html.escape(_fmt(s.off.get(key), 'tok/s'))} → "
+                f"{html.escape(_fmt(s.on.get(key), 'tok/s'))}</td>"
+                f'<td style="color:{_delta_color(d, higher)}">{_delta_text(d)}</td>'
+            )
+        rows.append("<tr>" + "".join(cells) + "</tr>")
+    return f"<table>{head}{''.join(rows)}</table>"
+
+
+def _round_table(suite: SuiteData) -> str:
+    rows = []
+    for s in suite.summaries:
+        rv = s.round_verdict
+        if not rv:
+            continue
+        rows.append(
+            f"<tr><td>{html.escape(s.key)}</td>"
+            f'<td style="color:{_delta_color(rv.get("round0_pct"), False)}">{_delta_text(rv.get("round0_pct"))}</td>'
+            f'<td style="color:{_delta_color(rv.get("round1_pct"), False)}">{_delta_text(rv.get("round1_pct"))}</td>'
+            f'<td style="color:{_delta_color(rv.get("steady_pct"), False)}">{_delta_text(rv.get("steady_pct"))}</td>'
+            f"<td>{html.escape(str(rv.get('verdict', '')))}</td></tr>"
+        )
+    if not rows:
+        return "<p class='note'>本次对比没有多轮（multiturn）场景。</p>"
+    return (
+        "<table><tr><th>场景</th><th>round0(冷) Δ</th><th>round1(首次热) Δ</th>"
+        "<th>稳态 Δ</th><th>判定</th></tr>" + "".join(rows) + "</table>"
+    )
+
+
+def _stability_table(suite: SuiteData) -> str:
+    a, b = suite.pair_titles
+    rows = "".join(
+        f"<tr><td>{html.escape(s.key)}</td><td>{html.escape(s.status_off)}</td>"
+        f"<td>{html.escape(s.status_on)}</td></tr>"
+        for s in suite.summaries
+    )
+    return (
+        f"<table><tr><th>场景</th><th>{html.escape(a)}</th><th>{html.escape(b)}</th></tr>"
+        + rows + "</table>"
+    )
+
+
+def _suite_charts(suite: SuiteData) -> list[str]:
+    from .rounds import round_series
+    from .svgchart import grouped_bar_chart, heatmap_chart, line_chart
+
+    cats = [s.key for s in suite.summaries]
+    charts: list[str] = []
+    heat_vals = [
+        [
+            delta_pct(s.off.get("mean_ttft_ms"), s.on.get("mean_ttft_ms")),
+            delta_pct(s.off.get("mean_tpot_ms"), s.on.get("mean_tpot_ms")),
+            delta_pct(s.off.get("total_token_throughput_tok_s"), s.on.get("total_token_throughput_tok_s")),
+            delta_pct(s.off.get("peak_output_token_throughput_tok_s"), s.on.get("peak_output_token_throughput_tok_s")),
+        ]
+        for s in suite.summaries
+    ]
+    charts.append(
+        heatmap_chart(
+            cats, ["TTFT", "TPOT", "总吞吐", "峰值输出"], heat_vals,
+            title="Δ 热图（方向已归一）",
+            better_dirs=[False, False, True, True],
+        )
+    )
+    for key, disp, unit in (
+        ("mean_ttft_ms", "TTFT 均值对比", "ms"),
+        ("total_token_throughput_tok_s", "总吞吐对比", "tok/s"),
+    ):
+        series = [
+            {"name": suite.pair_titles[0], "values": [s.off.get(key) for s in suite.summaries], "color": "#5b8def"},
+            {"name": suite.pair_titles[1], "values": [s.on.get(key) for s in suite.summaries], "color": "#e8734a"},
+        ]
+        charts.append(
+            grouped_bar_chart(
+                cats, series, title=disp, ylabel=disp, unit=unit,
+                higher_is_better=(key != "mean_ttft_ms"), width=1160, height=360,
+            )
+        )
+    for s in suite.summaries:
+        x, series = round_series(
+            s.off, s.on, base_name=suite.pair_titles[0], cand_name=suite.pair_titles[1]
+        )
+        if not x:
+            continue
+        charts.append(
+            line_chart(
+                [float(v) for v in x], series, title=f"{s.key} · 逐轮 TTFT",
+                xlabel="轮次", ylabel="TTFT", unit="ms", width=1160, height=320,
+                annotate_points=False,
+                subtitle="本引擎 cache_hit_rate 恒 0（测量限制）——看 TTFT 断崖",
+            )
+        )
+    return charts
+
+
+def render_suite_html(
+    suite: SuiteData, *, report_links: Mapping[str, str] | None = None
+) -> str:
+    """suite index.html：受控条件 + 全表 + 热图/柱状/断崖曲线 + 结论 + 导航。"""
+    from .util import iso, utcnow
+
+    links = dict(report_links or {})
+    a, b = suite.pair_titles
+    nav = " · ".join(
+        f'<a href="{html.escape(links[s.key])}">{html.escape(s.key)} 明细</a>'
+        for s in suite.summaries
+        if s.key in links
+    )
+    conclusions = "".join(f"<li>{html.escape(c)}</li>" for c in suite.conclusions)
+    charts_html = "".join(f'<div class="card">{c}</div>' for c in _suite_charts(suite))
+    return f"""<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">
+<title>{html.escape(suite.title)}</title>
+<style>{_CSS}</style></head><body>
+<h1>{html.escape(suite.title)}</h1>
+<div class="card note">
+战役汇总（sglbench campaign）· <b>{html.escape(a)}</b> vs <b>{html.escape(b)}</b>
+· 每场景取最新 ok run 按 scenario_key 对齐 · 绿=改善 红=劣化（±{DEFAULT_THRESHOLD_PCT:g}% 噪声阈值）
+· 生成 {html.escape(iso(utcnow()))}
+{'<br>每场景完整报告（含直方图/CDF/分位区间）: ' + nav if nav else ''}
+</div>
+
+<h2 id="env">① 受控条件（两侧 run 的环境快照差异）</h2>
+<div class="card">{_env_table(suite)}</div>
+
+<h2 id="summary">② 压测场景汇总（TTFT / TPOT）</h2>
+<div class="card">{_summary_table(suite)}</div>
+
+<h2 id="throughput">③ 吞吐量完整对比（token/s）</h2>
+<div class="card">{_throughput_table(suite)}</div>
+
+<h2 id="rounds">④ 多轮对话（逐轮 TTFT）</h2>
+<div class="card">{_round_table(suite)}</div>
+
+<h2 id="stability">⑤ 稳定性</h2>
+<div class="card">{_stability_table(suite)}</div>
+
+<h2 id="charts">⑥ 图表</h2>
+<div class="charts">{charts_html}</div>
+
+<h2 id="conclusions">⑦ 结论（自动草稿）</h2>
+<div class="card"><ul>{conclusions}</ul></div>
+
+<p class="note">生成: sglbench campaign report · 数据源 DuckDB（run_environments / metrics / request_samples）</p>
+</body></html>"""
