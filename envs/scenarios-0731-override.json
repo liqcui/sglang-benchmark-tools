@@ -1,0 +1,74 @@
+{
+ "hicache-multiturn-20x10": {
+  "key": "hicache-multiturn-20x10",
+  "name": "HiCache 多轮对话 20 客户端×10 轮",
+  "family": "hicache",
+  "description": "多轮对话专项（官方 bench_multiturn 参数: --num-clients 20 --num-rounds 10 --request-length 2048 --output-length 16）。逐轮 TTFT/cache-hit 对比 l2-off/l2-on。",
+  "backend": "sglang",
+  "base_url": "http://10.66.3.32:8001",
+  "host": null,
+  "port": null,
+  "model": "DeepSeek-V4-Flash",
+  "tokenizer": "/workspace/data/DeepSeek-V4-Flash-0731-W8A8",
+  "dataset_name": "random",
+  "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+  "num_prompts": 20,
+  "max_concurrency": 20,
+  "random_input": 2048,
+  "random_output": 16,
+  "random_range_ratio": 1.0,
+  "request_rate": 2.0,
+  "pd_separated": true,
+  "extra_args": [],
+  "env": {
+   "HF_HUB_OFFLINE": "1",
+   "TRANSFORMERS_OFFLINE": "1"
+  },
+  "sla": {
+   "min_success_rate": 1.0,
+   "max_failed_requests": 0,
+   "max_p99_ttft_ms": 15000.0
+  },
+  "tags": [
+   "hicache",
+   "l2",
+   "multiturn"
+  ]
+ },
+ "hicache-multiturn-80x10": {
+  "key": "hicache-multiturn-80x10",
+  "name": "HiCache 多轮对话 80 客户端×10 轮",
+  "family": "hicache",
+  "description": "多轮对话专项（官方 H800 基准参数: --num-clients 80 --num-rounds 10 --request-length 2048 --output-length 1）。",
+  "backend": "sglang",
+  "base_url": "http://10.66.3.32:8001",
+  "host": null,
+  "port": null,
+  "model": "DeepSeek-V4-Flash",
+  "tokenizer": "/workspace/data/DeepSeek-V4-Flash-0731-W8A8",
+  "dataset_name": "random",
+  "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+  "num_prompts": 80,
+  "max_concurrency": 80,
+  "random_input": 2048,
+  "random_output": 1,
+  "random_range_ratio": 1.0,
+  "request_rate": 1.0,
+  "pd_separated": true,
+  "extra_args": [],
+  "env": {
+   "HF_HUB_OFFLINE": "1",
+   "TRANSFORMERS_OFFLINE": "1"
+  },
+  "sla": {
+   "min_success_rate": 1.0,
+   "max_failed_requests": 0,
+   "max_p99_ttft_ms": 20000.0
+  },
+  "tags": [
+   "hicache",
+   "l2",
+   "multiturn"
+  ]
+ }
+}
