@@ -27,7 +27,7 @@
 ## §1 维度一：单请求性能（single request）
 
 > 场景：single-deepseek-standard 裁剪版（5 条 × 4K in / 2K out，串行）+ single-longctx
-> 裁剪版（5 条 × 65K in / 8K out，串行）。`待填:final-scan`
+> 裁剪版（5 条 × 65K in / 8K out，串行）。
 
 | 指标 | PP4 | PP1 | 胜者 |
 |---|---|---|---|
@@ -54,7 +54,7 @@ TTFT 13.3s。本终扫 PP1 单流吞吐更高（104/90）——系裁剪版条�
 
 > 场景：conc-64-deepseek 固定 200 prompts / 4K in / 2K out，**速率阶梯 rate {1, 2, 4}**
 > （需求 = rate×4096 in-tok/s：4.1K / 8.2K / 16.4K；服务侧实测上限 ~7.3K）→ 找吞吐平台 +
-> TTFT 膝点 = **最合理请求速率**。`待填:final-scan`
+> TTFT 膝点 = **最合理请求速率**。
 
 | rate (req/s) | 需求 in-tok/s | PP4: out tok/s / TTFT / TPOT | PP1: out tok/s / TTFT / TPOT |
 |---|---|---|---|
@@ -74,7 +74,7 @@ TTFT 13.3s。本终扫 PP1 单流吞吐更高（104/90）——系裁剪版条�
 ## §3 维度三：并发能力与最大安全并发（concurrency 阶梯）
 
 > 场景：rate=5 饱和档（20.5K in-tok/s 需求，2.8x 超配——对齐历史崩溃边界协议的到达强度），
-> 并发阶梯 conc {96, 128, 160}。`待填:final-scan` + 10-10 战役数据
+> 并发阶梯 conc {96, 128, 160}。
 
 | conc | PP4: 状态 / out tok/s / TTFT | PP1: 状态 / out tok/s / TTFT |
 |---|---|---|
