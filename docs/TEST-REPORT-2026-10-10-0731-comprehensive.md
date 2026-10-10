@@ -22,6 +22,29 @@
 交叉控制组（PP4-explicit / PP1-official）未跑，列为后续项。凡「两侧差不多/差很多」的结论
 均指「官方形态 vs 最优解形态」整体，不对模式/拓扑单独归因。
 
+### §0.1 受控性审计：实测命令行逐项 diff（2026-10-10 复核）
+
+四方实际生效命令（PP1 显式 prefill/decode + PP4 厂商 prefill/decode）已从节点日志拉出逐项比对：
+
+| # | 项 | PP1-explicit | PP4-official | 评估 |
+|---|---|---|---|---|
+| 1 | prefill 拓扑 | pp1 / tp8 / dp4 (+dp-attn×2) | pp4 / tp8 / dp1 | **设计变量** |
+| 2 | 启动模式 | explicit 直拼 | official 厂商脚本 | **设计变量**（与 #1 捆绑） |
+| 3 | decode `chunked-prefill-size` | 16384 | **65536** | ⚠ 未对齐（厂商默认快照差异；decode 侧含义弱，量级影响待估） |
+| 4 | `watchdog-timeout` | 300（默认） | **3600** | PP4 更宽容（若影响，方向对 PP4 有利） |
+| 5 | prefill `disaggregation-ib-device` | mlx5_0 | **mlx5_0,mlx5_1** | ⚠ KV 传输单轨 vs 双轨 |
+| 6 | `dist-timeout` | 300 | 30000 | 仅启动容忍度，服务期无影响 |
+| 7 | `cuda-graph-max-bs` | 请求 40 | 请求 64 | **实际等价**：两引擎均按 max_running/4 自动调整为 **16**（cap64 实测） |
+| 8 | 镜像 | `-retractfix` | `-llm-retractfix` | llm-launch 脚本补丁 + 休眠 modelslim 补丁；引擎热路径等价 |
+| 9 | 其余 20+ 项 | — | — | **全部一致**：模型路径/tp8/context 400000/kv bf16/prefill chunked 16384/mem-fraction 0.82、0.75/max-running 64/ep1/DSPARK block6/lb round_robin/… |
+| 10 | 运行态 | 常规 | 崩溃-重建冷组（对 PP4 不利）、时段差 | 噪声级 / 单向 |
+
+**受控性结论**：
+- 本对比 = **「官方形态 vs 最优解形态」的方案级对比**（2 个设计变量 + 4 处工程性未对齐项，
+  其中 #4/#6 对 PP4 中性偏有利、#10 对 PP4 不利）；
+- **不是纯拓扑 A/B**。纯拓扑归因需「对齐复测」（#3/#5 拉平后重跑核心格）——列为可选后续项；
+- 稳定性主结论（16/24 尝试失败 vs 1/9）对上述未对齐项**不敏感**（#4 方向相反都救不回）。
+
 ---
 
 ## §1 维度一：单请求性能（single request）
