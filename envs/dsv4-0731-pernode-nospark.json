@@ -1,5 +1,5 @@
 {
-  "cluster": "metax-c500-10.66.3",
+  "cluster": "metax-c500-{{CLUSTER_SUBNET}}",
   "namespace": "metax-ai-pd",
   "deployment": "0731 pernode PD: 4×prefill + 4×decode 每节点独立 tp8 引擎 + router 配对 [DSPARK OFF A/B]",
   "prefill_nodes": 4,

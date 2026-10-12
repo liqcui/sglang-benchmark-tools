@@ -1,5 +1,5 @@
 {
-  "cluster": "metax-c500-10.66.3",
+  "cluster": "metax-c500-{{CLUSTER_SUBNET}}",
   "namespace": "metax-ai-pd",
   "deployment": "deepseek-v4-flash-0731-pp1 (官方0.5.14镜像 + LLMC W8A8新模型, explicit) [HiCache L2 on]",
   "prefill_nodes": 4,

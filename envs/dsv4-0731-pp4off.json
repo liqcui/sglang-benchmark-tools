@@ -1,5 +1,5 @@
 {
-  "cluster": "metax-c500-10.66.3",
+  "cluster": "metax-c500-{{CLUSTER_SUBNET}}",
   "namespace": "metax-ai-pd",
   "deployment": "deepseek-v4-flash-0731-official-pp4 (official llm-launch, prefill pp4/tp8/dp1)",
   "prefill_nodes": 4,

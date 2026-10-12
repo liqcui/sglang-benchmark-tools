@@ -1,5 +1,5 @@
 {
-  "cluster": "metax-c500-10.66.3",
+  "cluster": "metax-c500-{{CLUSTER_SUBNET}}",
   "namespace": "metax-ai-pd",
   "deployment": "0731 对齐复测 al1: official 官方脚本, prefill pp1/tp8/dp4",
   "prefill_nodes": 4,

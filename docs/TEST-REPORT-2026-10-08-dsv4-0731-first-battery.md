@@ -7,7 +7,7 @@
   prefill 保持官方镜像）——详见 §3
 - **模型**：`/workspace/data/DeepSeek-V4-Flash-0731-W8A8`（沐曦适配版 LLMC SmoothQuant W8A8）
 - **env 快照**：`envs/dsv4-0731-pp1.json`（labels `dsv4-0731-new-*`）
-- **入口**：deepseek-v4-0731-router `10.66.3.32:8001`；served-name `DeepSeek-V4-Flash`
+- **入口**：deepseek-v4-0731-router `{{IP_DECODE_3}}:8001`；served-name `DeepSeek-V4-Flash`
 - **重要前提**：本轮为**"1:1 对齐用户单机验证命令"配置**（`max-running-requests=10`、
   `cuda-graph-max-bs=8`、`context 400K`、`conservativeness 0.6`）——即**按配置如实测量**，
   非集群调优后基线。
