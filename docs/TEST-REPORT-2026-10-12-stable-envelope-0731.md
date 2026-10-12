@@ -7,6 +7,11 @@
 
 ---
 
+> **2026-10-12 晚修订**：pernode PD（每节点独立 tp8 引擎 ×4+4）全面超越本文档的 PP1-explicit
+> 包络——**最佳运行点已迁移**：pernode + 每引擎 cap48 + DSPARK on：峰值 **3354 tok/s**、
+> 160 并发 TTFT **2.0s** 零失败、单流 TPOT **5.5ms**（收益/缺点/对照详见
+> `TEST-REPORT-2026-10-10-0731-comprehensive.md` §9）。本文档以下内容为 pernode 之前的基线包络。
+
 ## §1 对齐复测终局：模式 vs 拓扑的受控分解
 
 对齐设计：两侧同为 official 官方脚本 + 同镜像 + 同共享参数（ib 单轨 / decode chunked 16384 /

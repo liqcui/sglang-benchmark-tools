@@ -1,0 +1,291 @@
+{
+ "sm-single-c10": {
+  "key": "sm-single-c10",
+  "name": "单机cap10·单流×3",
+  "family": "sm",
+  "description": "单机容器复刻 (official 0.5.14, tp8 节点内, 非PD)",
+  "backend": "sglang",
+  "base_url": "http://10.66.3.35:8000",
+  "host": null,
+  "port": null,
+  "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+  "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+  "dataset_name": "random",
+  "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+  "num_prompts": 3,
+  "max_concurrency": 1,
+  "random_input": 4096,
+  "random_output": 2048,
+  "random_range_ratio": 1.0,
+  "request_rate": 1.0,
+  "pd_separated": false,
+  "extra_args": [],
+  "env": {
+   "HF_HUB_OFFLINE": "1",
+   "TRANSFORMERS_OFFLINE": "1"
+  },
+  "sla": {
+   "min_success_rate": 1.0,
+   "max_failed_requests": 0,
+   "max_p99_ttft_ms": 5000.0,
+   "max_p99_tpot_ms": 60.0,
+   "min_output_token_throughput_tok_s": 50.0
+  },
+  "tags": [
+   "baseline",
+   "gate"
+  ]
+ },
+ "sm-single-c64": {
+  "key": "sm-single-c64",
+  "name": "单机cap64·单流×2",
+  "family": "sm",
+  "description": "单机容器复刻 (official 0.5.14, tp8 节点内, 非PD)",
+  "backend": "sglang",
+  "base_url": "http://10.66.3.35:8000",
+  "host": null,
+  "port": null,
+  "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+  "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+  "dataset_name": "random",
+  "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+  "num_prompts": 2,
+  "max_concurrency": 1,
+  "random_input": 4096,
+  "random_output": 2048,
+  "random_range_ratio": 1.0,
+  "request_rate": 1.0,
+  "pd_separated": false,
+  "extra_args": [],
+  "env": {
+   "HF_HUB_OFFLINE": "1",
+   "TRANSFORMERS_OFFLINE": "1"
+  },
+  "sla": {
+   "min_success_rate": 1.0,
+   "max_failed_requests": 0,
+   "max_p99_ttft_ms": 5000.0,
+   "max_p99_tpot_ms": 60.0,
+   "min_output_token_throughput_tok_s": 50.0
+  },
+  "tags": [
+   "baseline",
+   "gate"
+  ]
+ },
+ "sm-conc8-c10": {
+  "key": "sm-conc8-c10",
+  "name": "单机cap10·并发8",
+  "family": "sm",
+  "description": "单机容器复刻 (official 0.5.14, tp8 节点内, 非PD)",
+  "backend": "sglang",
+  "base_url": "http://10.66.3.35:8000",
+  "host": null,
+  "port": null,
+  "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+  "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+  "dataset_name": "random",
+  "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+  "num_prompts": 8,
+  "max_concurrency": 8,
+  "random_input": 4096,
+  "random_output": 2048,
+  "random_range_ratio": 1.0,
+  "request_rate": 8.0,
+  "pd_separated": false,
+  "extra_args": [],
+  "env": {
+   "HF_HUB_OFFLINE": "1",
+   "TRANSFORMERS_OFFLINE": "1"
+  },
+  "sla": {
+   "min_success_rate": 1.0,
+   "max_failed_requests": 0,
+   "max_p99_ttft_ms": 6000.0,
+   "max_p99_tpot_ms": 70.0
+  },
+  "tags": [
+   "sweep",
+   "gate"
+  ]
+ },
+ "sm-conc8-c64": {
+  "key": "sm-conc8-c64",
+  "name": "单机cap64·并发8",
+  "family": "sm",
+  "description": "单机容器复刻 (official 0.5.14, tp8 节点内, 非PD)",
+  "backend": "sglang",
+  "base_url": "http://10.66.3.35:8000",
+  "host": null,
+  "port": null,
+  "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+  "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+  "dataset_name": "random",
+  "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+  "num_prompts": 8,
+  "max_concurrency": 8,
+  "random_input": 4096,
+  "random_output": 2048,
+  "random_range_ratio": 1.0,
+  "request_rate": 8.0,
+  "pd_separated": false,
+  "extra_args": [],
+  "env": {
+   "HF_HUB_OFFLINE": "1",
+   "TRANSFORMERS_OFFLINE": "1"
+  },
+  "sla": {
+   "min_success_rate": 1.0,
+   "max_failed_requests": 0,
+   "max_p99_ttft_ms": 6000.0,
+   "max_p99_tpot_ms": 70.0
+  },
+  "tags": [
+   "sweep",
+   "gate"
+  ]
+ },
+ "sm-conc32-c64": {
+  "key": "sm-conc32-c64",
+  "name": "单机cap64·并发32",
+  "family": "sm",
+  "description": "单机容器复刻 (official 0.5.14, tp8 节点内, 非PD)",
+  "backend": "sglang",
+  "base_url": "http://10.66.3.35:8000",
+  "host": null,
+  "port": null,
+  "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+  "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+  "dataset_name": "random",
+  "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+  "num_prompts": 32,
+  "max_concurrency": 32,
+  "random_input": 4096,
+  "random_output": 2048,
+  "random_range_ratio": 1.0,
+  "request_rate": 32.0,
+  "pd_separated": false,
+  "extra_args": [],
+  "env": {
+   "HF_HUB_OFFLINE": "1",
+   "TRANSFORMERS_OFFLINE": "1"
+  },
+  "sla": {
+   "min_success_rate": 1.0,
+   "max_failed_requests": 0,
+   "max_p99_ttft_ms": 6000.0,
+   "max_p99_tpot_ms": 70.0
+  },
+  "tags": [
+   "sweep",
+   "gate"
+  ]
+ },
+ "sm-conc64-c64": {
+  "key": "sm-conc64-c64",
+  "name": "单机cap64·并发64",
+  "family": "sm",
+  "description": "单机容器复刻 (official 0.5.14, tp8 节点内, 非PD)",
+  "backend": "sglang",
+  "base_url": "http://10.66.3.35:8000",
+  "host": null,
+  "port": null,
+  "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+  "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+  "dataset_name": "random",
+  "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+  "num_prompts": 64,
+  "max_concurrency": 64,
+  "random_input": 4096,
+  "random_output": 2048,
+  "random_range_ratio": 1.0,
+  "request_rate": 64.0,
+  "pd_separated": false,
+  "extra_args": [],
+  "env": {
+   "HF_HUB_OFFLINE": "1",
+   "TRANSFORMERS_OFFLINE": "1"
+  },
+  "sla": {
+   "min_success_rate": 1.0,
+   "max_failed_requests": 0,
+   "max_p99_ttft_ms": 10000.0,
+   "max_p99_tpot_ms": 90.0
+  },
+  "tags": [
+   "sweep",
+   "gate"
+  ]
+ },
+ "sm-conc128-c64": {
+  "key": "sm-conc128-c64",
+  "name": "单机cap64·并发128",
+  "family": "sm",
+  "description": "单机容器复刻 (official 0.5.14, tp8 节点内, 非PD)",
+  "backend": "sglang",
+  "base_url": "http://10.66.3.35:8000",
+  "host": null,
+  "port": null,
+  "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+  "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+  "dataset_name": "random",
+  "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+  "num_prompts": 128,
+  "max_concurrency": 128,
+  "random_input": 4096,
+  "random_output": 2048,
+  "random_range_ratio": 1.0,
+  "request_rate": 128.0,
+  "pd_separated": false,
+  "extra_args": [],
+  "env": {
+   "HF_HUB_OFFLINE": "1",
+   "TRANSFORMERS_OFFLINE": "1"
+  },
+  "sla": {
+   "min_success_rate": 1.0,
+   "max_failed_requests": 0,
+   "max_p99_ttft_ms": 15000.0,
+   "max_p99_tpot_ms": 120.0
+  },
+  "tags": [
+   "sweep",
+   "stress"
+  ]
+ },
+ "sm-longctx-c64": {
+  "key": "sm-longctx-c64",
+  "name": "单机cap64·65K单流",
+  "family": "sm",
+  "description": "单机容器复刻 (official 0.5.14, tp8 节点内, 非PD)",
+  "backend": "sglang",
+  "base_url": "http://10.66.3.35:8000",
+  "host": null,
+  "port": null,
+  "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+  "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+  "dataset_name": "random",
+  "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+  "num_prompts": 1,
+  "max_concurrency": 1,
+  "random_input": 65536,
+  "random_output": 8192,
+  "random_range_ratio": 1.0,
+  "request_rate": 1.0,
+  "pd_separated": false,
+  "extra_args": [],
+  "env": {
+   "HF_HUB_OFFLINE": "1",
+   "TRANSFORMERS_OFFLINE": "1"
+  },
+  "sla": {
+   "min_success_rate": 1.0,
+   "max_failed_requests": 0,
+   "max_p99_ttft_ms": 60000.0,
+   "max_p99_tpot_ms": 100.0
+  },
+  "tags": [
+   "long-context"
+  ]
+ }
+}
