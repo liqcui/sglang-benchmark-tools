@@ -1,12 +1,18 @@
-# TEST-REPORT — 0731 安全边界（不崩溃）：pernode vs pp4full（prefill/decode 分侧）
+# TEST-REPORT — 0731 安全边界（不崩溃）：pernode vs pp4full vs PP1-explicit（prefill/decode 分侧）
 
-- **日期**：2026-10-13（pernode = 10-12 战役收官数据；pp4full = 10-13 prod-suite campaign **进行中**，本文为草稿）
+- **日期**：2026-10-13 起草 → **2026-10-14 终版**（含收官日：修复战役 + 三形态终版数据集 + 边界阶梯）
 - **目的**：定义并记录「**安全边界 = 不崩溃**」——多大的并发（concurrency）与请求速率（request rate）
   下 **prefill / decode 两侧**均不崩溃，作为生产选型与运维判据。
-- **口径**：一切数据来自 sglbench run 归档（label `prod-2026-10-{pernode,pp4full}`）；崩溃 = 引擎组重建 /
-  pod restart / 进程 abort（非超时）。**超时（wrapper 45m）单独标注，不混淆为崩溃**。
-- **上游**：`TEST-REPORT-2026-10-12-stable-envelope-0731.md`（PP1-explicit 包络）、
-  `TEST-REPORT-2026-10-10-0731-comprehensive.md`（§9 pernode 终版、§4.2 故障族谱）。
+- **口径**：一切数据来自 sglbench run 归档（DuckDB + `data/runs/` 全量已备份至
+  `minio/cubestack-full-offline-files/sglbench-backup-20261014/`，供多角度后分析）；崩溃 = 引擎组重建 /
+  pod restart / 进程 abort（非超时）。**超时（wrapper）单独标注，不混淆为崩溃**。
+- **上游**：`TROUBLESHOOTING-2026-10-14-dsv4-0731-pp4full-crashes.md`（四类崩溃框架 + 逐次首死分析）、
+  `TEST-REPORT-2026-10-12-stable-envelope-0731.md`、`TEST-REPORT-2026-10-10-0731-comprehensive.md`。
+
+> **2026-10-14 收官日摘要**：① **修复战役闭环**——pp4full 两类崩溃被参数修复并验证（A 类 decode 池饱和
+> 断言：mem-frac↑0.78 → std-c128 300/300 ✓；D 类 65K prefill OOM：prefill mem-frac↓0.78 → 65K 单流
+> 20/20、TTFT **4.27s** ✓）；② **三形态终版数据集**——pernode 42 全 ok（3h10m）/ pp1x 33/34 ok /
+> pp4full 战役 66 run；③ **L2 A/B**：pernode L2-off 与 L2-on 双双全绿；④ 边界阶梯：见 §8。
 
 ---
 
@@ -34,8 +40,9 @@
 
 | 形态 | decode 侧边界（0 崩溃） | prefill 侧边界（0 崩溃） | rate 边界 |
 |---|---|---|---|
-| **pernode**（最优解） | **conc ≤ 160 @ rate ≤ 5**（3354 tok/s、TTFT 2.0s、零失败）；conc > 192（=总 cap）超限（c256 全 partial） | 已测负载内**无独立崩溃线**（全部非 ok 均为 decode/KV 侧或超时） | **rate 2 = 容量点**（2903 tok/s）；rate 5 饱和档已验证；**rate ≥ 8 未测（待上探）** |
-| **pp4full**（官方） | **conc ≤ 32** 可用（但平台故障可任意档触发）；**conc ≥ 64 图扩展捕获崩**（c4_v2.cuh:481） | 无独立负载线；被 decode 级联放大 + leader 单端点熔断脆弱 | **rate 1 ok（1780 tok/s）；rate 2 崩**（10-10）/ 本次按 conc 档扫 |
+| **pernode**（最优解） | **conc ≤ 160 @ rate ≤ 5**（3354 tok/s、TTFT 2.0s、零失败）；conc > 192（=总 cap）超限（c256 全 partial） | 已测负载内**无独立崩溃线**；平台故障呈**单引擎隔离**（1/8 算力闪断，全站不崩） | **rate 2 = 容量点**（2903 tok/s）；rate 5 饱和档已验证；**rate ≥ 8 待阶梯**（§8.4） |
+| **pp4full**（官方，**10-14 修复后**） | **conc64/128 ok（c128 300/300 ✓）**、65K 单流 ok（TTFT 4.27s ✓）；残余=**B 类平台故障**（.32/.33/.34/.35 轮转，无参数解）+ **D′**（chat rate13 MCCL-OOM） | 无独立负载线；65K OOM 已修复（mem-frac 0.78） | 官方路径税（单流 +~4s）仍在 |
+| **PP1-explicit**（tp8/dp4 双侧，**10-14 终版**） | **conc ≤ 160 ok**（std 阶梯含 c160 ok）；crash-probe/conc-256 **竟然全过**；prefill-only stage 诊断失败（单引擎极限） | 无整组级联（引擎=4 节点整体，故障=全引擎） | rate/网格全 ok；prefill-only 为唯一非 ok |
 
 > ⚠ pp4full 数据 **#14/25 进行中**；pernode 上探（conc192/224/256、rate8/10）待执行——见 §6。
 
@@ -163,3 +170,56 @@ CUDA graph 捕获期 DSv4 c4_v2 压缩 JIT kernel 失败:
 - 引擎日志：节点 hostPath `/var/log/sglang-dsv4-0731/{prefill,decode}-rank*.log`
 - 战役编排：`campaigns/production-suite.json`（25 场景，auto_retry=2，gpu_reset，45m timeout）
 - env 快照：`envs/dsv4-0731-pernode-c48.json` / `envs/dsv4-0731-pp4full.json`（已入库 run_environments）
+
+---
+
+## §8 收官日全记录（2026-10-14）
+
+### 8.1 修复战役（pp4full，Phase 1）——A/D 两类修复闭环
+
+| 类 | 修复 | 验证数据（label） |
+|---|---|---|
+| **A** decode 池饱和断言（`kv_loc=None`） | decode `mem-frac 0.75→0.78`（+graph-bs128/env 对齐） | **std-c128 = 300/300 ok**（`pp4full-fixed2-std-c128`）✓ |
+| **D** 65K prefill OOM（2.57GiB 三连复现） | prefill `mem-frac 0.82→0.78` | **lc65k-c1 = 20/20 ok，MeanTTFT 4.27s**（`pp4full-fixed4-lc65k-c1`）；c8 = 34/40 ✓ |
+| **B** 平台设备故障（mem_viol/xnack/warm-reset） | ❌ 参数无解 | .32/.33/.34/.35 轮转；**pernode 单引擎隔离实证**（同故障仅 1/8 算力闪断） |
+| **D′** chat rate13 MCCL-proxy OOM | ❌ 待镜像级/负载整形 | chat-c128 136/800 后崩（`pp4full-fixed2-chat-c128`） |
+
+pp4full 终台账：prod-suite campaign **66 run（7 ok/21 partial/38 failed，含大量假失败污染——假失败台账见
+troubleshooting §2）**；修复重测 4 轮（fixed1-4）。
+
+### 8.2 三形态终版数据集（同一 42 场景套件）
+
+| 形态 | label | 结果 | 耗时 |
+|---|---|---|---|
+| **pernode**（4+4 节点内 tp8） | `final-2026-10-14-pernode` | **42/42 ok**（c160 1 次重试；.32 引擎故障=单引擎隔离） | 3h10m |
+| **pp1x**（4P+4D 跨节点 tp8/dp4） | `final-2026-10-14-pp1x` | **33/34 ok**（唯一 failed=prefill-only stage；crash-probe/conc-256 竟然通过；c160 修复后复跑 ok） | ~2h |
+| **pp4full**（官方脚本 pp4/tp8/dp1） | `prod-2026-10-pp4full` + `pp4full-fixed*` | 战役 66 run + 修复重测（见 §8.1） | — |
+
+### 8.3 L2 A/B（pernode，严格同拓扑）
+
+| 侧 | label | 结果 |
+|---|---|---|
+| L2-off（基线，主套件内） | `final-2026-10-14-pernode`（mini-l2×3 + multiturn×2 同键） | 全 ok |
+| L2-on（`PD_ENABLE_HICACHE=1`） | `final-2026-10-14-pernode-l2` | **6/6 ok**（含 80x10-r16 官参档） |
+
+数值级 A/B（TTFT/吞吐差）→ 从备份数据后分析（两组均已入 DuckDB + MinIO 备份）。
+
+### 8.4 边界阶梯（pernode，自适应首崩即停）——终版结果
+
+| 探针格 | 结果 | 形态 |
+|---|---|---|
+| c192@r5 | **partial（成功 3.3%）** | **router 熔断**（`No available prefill workers (all circuits open)`；引擎全健康、无 forensics 签名、probe 200） |
+| c176@r5（二分细化） | **partial（200/300，TTFT 29s）** | 服务层崩解（无签名；队列/熔断） |
+| **r8@c64** | **failed（8 节点 connection_reset）** | **引擎级级联崩溃**（历史"rate≥8 从未通过"复现） |
+
+**pernode 安全边界终版**：**conc ≤ 160 @ rate ≤ 5 = 零崩溃包络**（3354 tok/s 峰值 / TTFT 2.0s）；
+**conc ≥ 176 = 服务层崩解**（router 熔断型，引擎不崩可恢复）；**rate ≥ 8 = 引擎级崩溃**（跨引擎级联）——
+**"边界崩"与"崩溃"分两层**：并发超限 = 服务拒绝（可恢复）；速率超限 = 真崩溃（须避免）。label
+`boundary-probe-pernode-*`（4 格数据全部入 DuckDB + MinIO 备份）。
+
+### 8.5 交付物清单
+
+- 本报告（安全边界终版）+ `TROUBLESHOOTING-2026-10-14-*.md`（四类框架+逐次首死）
+- 套件：`campaigns/final-suite.json`（42×双形态）+ `final-pernode-l2-suite.json`
+- 数据：`data/runs/` 全量 + `bench.duckdb`（MinIO 备份 `cubestack-full-offline-files/sglbench-backup-20261014/`）
+- 部署资产：llm-d 五形态目录（pernode/pp1x/pp4full/nospark/f4-终止）+ 修复 yaml（Phase 1/5）
