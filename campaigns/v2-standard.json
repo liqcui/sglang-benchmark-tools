@@ -1,0 +1,29 @@
+{
+  "name": "v2-standard",
+  "title": "v2 标准套件·层A：单流能力基线 + 闭合环并发阶梯（16/32/64/96/128/160）",
+  "exec": "docker",
+  "timeout": "2h",
+  "auto_retry": 2,
+  "gpu_reset": true,
+  "sides": {
+    "v2": {
+      "label": "v2-standard-2026-10",
+      "env_file": "envs/dsv4-0731-pernode-c48.json"
+    }
+  },
+  "scenarios": [
+    "v2-single-chat-c1",
+    "v2-single-code-c1",
+    "v2-single-rag-c1",
+    { "key": "v2-single-standard-c1", "repeats": 3 },
+    "v2-single-longctx-65k-c1",
+    "v2-conc-16-standard",
+    "v2-conc-32-standard",
+    { "key": "v2-conc-64-standard", "repeats": 3 },
+    "v2-conc-96-standard",
+    "v2-conc-128-standard",
+    { "key": "v2-conc-160-standard", "repeats": 2 },
+    "v2-longctx-65k-c8"
+  ],
+  "output_dir": "reports/v2-standard"
+}

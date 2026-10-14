@@ -598,6 +598,7 @@ class CampaignSpec:
     gpu_reset: bool = False
     title: str = ""
     output_dir: str = ""
+    eval_after: str = ""  # 非空时：每个场景 ok 后自动跑该子集的精度评测
 
 
 def parse_scenario_entry(raw: Any) -> ScenarioEntry:
@@ -653,6 +654,7 @@ def load_spec(path: str | Path) -> CampaignSpec:
         gpu_reset=bool(data.get("gpu_reset", False)),
         title=str(data.get("title", "")),
         output_dir=str(data.get("output_dir", "")),
+        eval_after=str(data.get("eval_after", "") or ""),
     )
 
 
@@ -729,12 +731,13 @@ def _wait_after_failure(scenario, spec: CampaignSpec) -> None:
     _wait_healthy(scenario, timeout_s=900)
 
 
-def _default_bench_runner(paths, spec: CampaignSpec, side_spec: SideSpec, store):
+def _default_bench_runner(paths, spec: CampaignSpec, side_spec: SideSpec, store, catalog=None,
+                          eval_after: str = ""):
     def run(entry: ScenarioEntry, side: str) -> ScenarioRunOutcome:
         from .runner import ExecEnv, apply_overrides, run_scenario
         from .scenarios import get_scenario
 
-        scenario = get_scenario(entry.key)
+        scenario = get_scenario(entry.key, catalog)
         if entry.set:
             scenario = apply_overrides(scenario, entry.set)
         attempt = 0
@@ -749,6 +752,9 @@ def _default_bench_runner(paths, spec: CampaignSpec, side_spec: SideSpec, store)
             if store is not None:
                 store.save_run(record)
             if record.status == "ok" or attempt >= spec.auto_retry:
+                if record.status == "ok" and eval_after:
+                    _auto_eval(paths, scenario, record, eval_after=eval_after,
+                               store=store, spec=spec, label=side_spec.label)
                 return ScenarioRunOutcome(
                     key=entry.key, mode="bench",
                     action="ok" if record.status == "ok" else record.status,
@@ -760,12 +766,39 @@ def _default_bench_runner(paths, spec: CampaignSpec, side_spec: SideSpec, store)
     return run
 
 
-def _default_multiturn_runner(paths, spec: CampaignSpec, side_spec: SideSpec, store):
+def _auto_eval(paths, scenario, record, *, eval_after: str, store, spec: CampaignSpec,
+               label: str = "") -> None:
+    """战役收尾的精度评测钩子（best-effort；失败只打印，不影响战役结果）。"""
+    try:
+        from .quality import run_eval_after
+
+        ev = run_eval_after(
+            paths, scenario,
+            subset_name=eval_after,
+            store=store,
+            linked_run_id=record.run_id,
+            label=label or scenario.key,
+            timeout_s=_parse_eval_timeout(spec.timeout),
+            on_line=lambda line: print(line),
+        )
+        if ev is not None:
+            print(f"    → eval {ev.status} {ev.eval_id}")
+    except Exception as exc:  # noqa: BLE001 — 钩子永不阻断战役
+        print(f"    → eval 跳过（{type(exc).__name__}: {exc}）")
+
+
+def _parse_eval_timeout(bench_timeout: str) -> float:
+    """评测子进程超时：以压测超时为参考放大约 4×，至少 1800s。"""
+    base = _parse_timeout_s(bench_timeout) or 1800.0
+    return max(1800.0, base * 4.0)
+
+
+def _default_multiturn_runner(paths, spec: CampaignSpec, side_spec: SideSpec, store, catalog=None):
     def run(entry: ScenarioEntry, side: str) -> ScenarioRunOutcome:
         from .multiturn import archive_multiturn, run_multiturn
         from .scenarios import get_scenario
 
-        scenario = get_scenario(entry.key)
+        scenario = get_scenario(entry.key, catalog)
         rounds = int(entry.set.get("rounds", 10))
         attempt = 0
         while True:
@@ -819,10 +852,14 @@ def run_campaign(
     store=None,
     bench_runner=None,
     multiturn_runner=None,
+    catalog=None,
+    eval_after: str | None = None,
 ) -> CampaignResult:
     """执行战役一侧：逐场景（可跳过已有）→ 注入式 runner 便于测试。
 
     ``only``：fnmatch 过滤场景 key；``force``：不用跳过决策。
+    ``catalog``：场景目录（含 ``--scenario-file`` 追加的自定义场景）；缺省只用内置目录。
+    ``eval_after``：非空时覆盖 spec 的 eval_after（对 bench 场景，ok 后自动跑精度评测）。
     """
     from fnmatch import fnmatch
 
@@ -837,6 +874,21 @@ def run_campaign(
         skip = (not force) and store is not None and should_skip(store, entry, side_spec)
         rows.append((entry.key, entry.mode, "skipped" if skip else "run"))
     if dry_run:
+        if catalog is not None:
+            # 显式传入目录时做 key 校验：把"跑到一半才发现 key 写错"提前到 dry-run。
+            from .scenarios import get_scenario
+
+            unknown = []
+            for entry in entries:
+                try:
+                    get_scenario(entry.key, catalog)
+                except KeyError:
+                    unknown.append(entry.key)
+            if unknown:
+                raise ValueError(
+                    "战役 spec 里的场景 key 不存在: " + "、".join(sorted(unknown))
+                    + "（自定义场景请用 --scenario-file 追加对应 JSON/TOML）"
+                )
         result.outcomes = [
             ScenarioRunOutcome(key=k, mode=m, action=("skipped" if a == "skipped" else "run"))
             for k, m, a in rows
@@ -844,8 +896,9 @@ def run_campaign(
         return result
 
     print(render_campaign_plan(spec, side, rows))
-    bench = bench_runner or _default_bench_runner(paths, spec, side_spec, store)
-    mt = multiturn_runner or _default_multiturn_runner(paths, spec, side_spec, store)
+    effective_eval = (spec.eval_after if eval_after is None else eval_after) or ""
+    bench = bench_runner or _default_bench_runner(paths, spec, side_spec, store, catalog, effective_eval)
+    mt = multiturn_runner or _default_multiturn_runner(paths, spec, side_spec, store, catalog)
     for entry, (_k, _m, action) in zip(entries, rows):
         if action == "skipped":
             print(f"  ↺ {entry.key} 已有 ok run，跳过（--force 重跑）")
@@ -853,9 +906,12 @@ def run_campaign(
                 ScenarioRunOutcome(key=entry.key, mode=entry.mode, action="skipped")
             )
             continue
-        print(f"  ▶ {entry.key} ({entry.mode}) …")
-        fn = mt if entry.mode == "multiturn" else bench
-        outcome = fn(entry, side_spec.label)
-        print(f"    → {outcome.action} {outcome.run_id} {outcome.detail}".rstrip())
-        result.outcomes.append(outcome)
+        total = max(1, int(entry.repeats or 1))
+        for index in range(total):
+            tag = f" [{index + 1}/{total}]" if total > 1 else ""
+            print(f"  ▶ {entry.key} ({entry.mode}){tag} …")
+            fn = mt if entry.mode == "multiturn" else bench
+            outcome = fn(entry, side_spec.label)
+            print(f"    → {outcome.action} {outcome.run_id} {outcome.detail}".rstrip())
+            result.outcomes.append(outcome)
     return result

@@ -1,0 +1,72 @@
+{
+  "name": "final-suite",
+  "title": "终版综合测试套件 — 双形态（pernode 最优解 + PP1-explicit tp8/dp4/pp1）：prod 23 全套 + 最优点网格 + 单流/单阶段 + crash-probe + L2 基线（boundary 已删：已定性+加速）",
+  "exec": "kubectl",
+  "timeout": "45m",
+  "auto_retry": 2,
+  "gpu_reset": true,
+  "sides": {
+    "fin": {
+      "label": "final-2026-10-14-pernode",
+      "env_file": "envs/dsv4-0731-pernode-c48.json"
+    },
+    "pp1x": {
+      "label": "final-2026-10-14-pp1x",
+      "env_file": "envs/dsv4-0731-pp1.json"
+    },
+    "finl2": {
+      "label": "final-2026-10-14-pernode-l2",
+      "env_file": "envs/dsv4-0731-pernode-c48-l2.json"
+    }
+  },
+  "scenarios": [
+    "prod-chat-c1",
+    "prod-rag-c1",
+    "prod-code-c1",
+    "prod-standard-c16",
+    "prod-standard-c32",
+    "prod-standard-c64",
+    "prod-standard-c96",
+    "prod-standard-c128",
+    "prod-standard-c160",
+    "prod-chat-c16",
+    "prod-chat-c64",
+    "prod-chat-c128",
+    "prod-rag-c16",
+    "prod-rag-c64",
+    "prod-rag-c128",
+    "prod-code-c16",
+    "prod-code-c64",
+    "prod-code-c128",
+    "prod-longctx-65k-c1",
+    "prod-longctx-65k-c8",
+    "prod-longctx-128k-c1",
+    "prod-longctx-200k-c1",
+    "prod-steady-standard-r2",
+
+    {"key": "prod-steady-standard-r2", "set": {"request_rate": 1.0}},
+    {"key": "prod-steady-standard-r2", "set": {"request_rate": 3.0}},
+    {"key": "prod-steady-standard-r2", "set": {"request_rate": 4.0}},
+    {"key": "prod-steady-standard-r2", "set": {"request_rate": 5.0}},
+    {"key": "prod-steady-standard-r2", "set": {"max_concurrency": 32}},
+    {"key": "prod-steady-standard-r2", "set": {"max_concurrency": 96}},
+    {"key": "prod-steady-standard-r2", "set": {"max_concurrency": 128}},
+    {"key": "prod-steady-standard-r2", "set": {"max_concurrency": 160}},
+
+    "single-deepseek-standard",
+    "single-longctx-deepseek",
+
+    "prefill-only-deepseek",
+    "decode-only-deepseek",
+
+    "conc-128-crash-probe",
+    "conc-256-deepseek",
+
+    "mini-l2-32c",
+    "mini-l2-64c",
+    "mini-l2-128c",
+    "hicache-multiturn-20x10",
+    "hicache-multiturn-80x10"
+  ],
+  "output_dir": "reports/final-suite"
+}

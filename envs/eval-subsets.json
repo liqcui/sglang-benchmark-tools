@@ -1,0 +1,29 @@
+{
+  "_comment": "精度评测子集定义（sglbench eval / run --eval-after / campaign.eval_after）。同名子集会覆盖内置定义。查找顺序：--eval-file > <home>/eval-subsets.json > <cwd>/envs/eval-subsets.json > 内置。",
+  "subsets": {
+    "smoke": {
+      "description": "5 分钟精度冒烟：数学推理 + 指令遵循（每个 run 收尾首选）",
+      "tasks": ["gsm8k", "ifeval"],
+      "num_fewshot": 0,
+      "limit": 200,
+      "apply_chat_template": true,
+      "num_concurrent": 8
+    },
+    "regression": {
+      "description": "版本回归：中英推理 + 指令遵循 + 知识（~30 分钟）",
+      "tasks": ["gsm8k", "ifeval", "arc_challenge", "ceval-valid"],
+      "num_fewshot": 0,
+      "limit": 500,
+      "apply_chat_template": true,
+      "num_concurrent": 8
+    },
+    "full": {
+      "description": "完整评测：不做 limit，耗时长，仅发版前跑",
+      "tasks": ["gsm8k", "ifeval", "arc_challenge", "mmlu", "ceval-valid", "hellaswag"],
+      "num_fewshot": 5,
+      "limit": null,
+      "apply_chat_template": true,
+      "num_concurrent": 16
+    }
+  }
+}

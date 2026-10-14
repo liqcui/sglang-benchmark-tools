@@ -1,0 +1,31 @@
+{
+  "name": "v2-capacity",
+  "title": "v2 容量套件·层B：开放环速率扫描（找容量点）+ 形状容量档 + 混合真实长度",
+  "exec": "docker",
+  "timeout": "2h",
+  "auto_retry": 2,
+  "gpu_reset": true,
+  "sides": {
+    "v2": {
+      "label": "v2-capacity-2026-10",
+      "env_file": "envs/dsv4-0731-pernode-c48.json"
+    }
+  },
+  "scenarios": [
+    { "key": "v2-rate-sweep-standard-r05", "repeats": 2 },
+    { "key": "v2-rate-sweep-standard-r10", "repeats": 2 },
+    { "key": "v2-rate-sweep-standard-r15", "repeats": 2 },
+    { "key": "v2-rate-sweep-standard-r20", "repeats": 3 },
+    { "key": "v2-rate-sweep-standard-r25", "repeats": 2 },
+    "v2-chat-c64-r55",
+    "v2-chat-c128-r80",
+    "v2-rag-c16-r10",
+    "v2-rag-c32-r15",
+    "v2-code-c64-r15",
+    "v2-code-c128-r22",
+    "v2-mixed-sharegpt-c64-r8",
+    "v2-mixed-sharegpt-c64-r16",
+    "v2-longctx-65k-c16"
+  ],
+  "output_dir": "reports/v2-capacity"
+}

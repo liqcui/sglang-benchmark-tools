@@ -1,0 +1,477 @@
+{
+  "scenarios": [
+    {
+      "key": "v2-single-standard-c1",
+      "name": "v2·单流·通用文本 4K/2K（能力基线）",
+      "family": "v2-standard",
+      "description": "层A 能力基线：conc=1 串行，产出延迟下界（TPOT_min / TTFT_service）。替代旧 single-deepseek-standard：n 50→100（p99 才有统计意义）、--ignore-eos 锁死输出长度（历史 run 实际输出长度漂移 0.11–1.00×标称，见文件 _note）。前置：pernode + 每引擎 cap48（envs/dsv4-0731-pernode-c48.json）。",
+      "backend": "sglang",
+      "base_url": "http://10.66.3.32:8001",
+      "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "dataset_name": "random",
+      "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+      "num_prompts": 100,
+      "max_concurrency": 1,
+      "random_input": 4096,
+      "random_output": 2048,
+      "random_range_ratio": 1.0,
+      "request_rate": 1.0,
+      "pd_separated": true,
+      "sla": {
+        "min_success_rate": 1.0,
+        "max_failed_requests": 0,
+        "max_p99_ttft_ms": 4000.0,
+        "max_p99_tpot_ms": 20.0
+      },
+      "tags": [
+        "v2",
+        "capability",
+        "gate"
+      ],
+      "extra_args": [
+        "--ignore-eos"
+      ]
+    },
+    {
+      "key": "v2-single-chat-c1",
+      "name": "v2·单流·在线对话 512/512（能力基线）",
+      "family": "v2-standard",
+      "description": "层A 能力基线：交互式画像单流。产出 TPOT_min 与 TTFT 下界，作为 chat 形状 SLA 标定输入。",
+      "backend": "sglang",
+      "base_url": "http://10.66.3.32:8001",
+      "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "dataset_name": "random",
+      "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+      "num_prompts": 100,
+      "max_concurrency": 1,
+      "random_input": 512,
+      "random_output": 512,
+      "random_range_ratio": 1.0,
+      "request_rate": 1.0,
+      "pd_separated": true,
+      "sla": {
+        "min_success_rate": 1.0,
+        "max_failed_requests": 0,
+        "max_p99_ttft_ms": 2000.0,
+        "max_p99_tpot_ms": 15.0
+      },
+      "tags": [
+        "v2",
+        "capability",
+        "chat"
+      ],
+      "extra_args": [
+        "--ignore-eos"
+      ]
+    },
+    {
+      "key": "v2-single-code-c1",
+      "name": "v2·单流·代码生成 1K/2K（能力基线）",
+      "family": "v2-standard",
+      "description": "层A 能力基线：decode 密集画像单流（长输出暴露 TPOT）。",
+      "backend": "sglang",
+      "base_url": "http://10.66.3.32:8001",
+      "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "dataset_name": "random",
+      "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+      "num_prompts": 50,
+      "max_concurrency": 1,
+      "random_input": 1024,
+      "random_output": 2048,
+      "random_range_ratio": 1.0,
+      "request_rate": 0.5,
+      "pd_separated": true,
+      "sla": {
+        "min_success_rate": 1.0,
+        "max_failed_requests": 0,
+        "max_p99_ttft_ms": 2500.0,
+        "max_p99_tpot_ms": 20.0
+      },
+      "tags": [
+        "v2",
+        "capability",
+        "code"
+      ],
+      "extra_args": [
+        "--ignore-eos"
+      ]
+    },
+    {
+      "key": "v2-single-rag-c1",
+      "name": "v2·单流·RAG 知识问答 8K/256（能力基线）",
+      "family": "v2-standard",
+      "description": "层A 能力基线：prefill 密集画像单流（长输入短输出，暴露 prefill/KV 传输）。",
+      "backend": "sglang",
+      "base_url": "http://10.66.3.32:8001",
+      "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "dataset_name": "random",
+      "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+      "num_prompts": 50,
+      "max_concurrency": 1,
+      "random_input": 8192,
+      "random_output": 256,
+      "random_range_ratio": 1.0,
+      "request_rate": 0.5,
+      "pd_separated": true,
+      "sla": {
+        "min_success_rate": 1.0,
+        "max_failed_requests": 0,
+        "max_p99_ttft_ms": 4000.0,
+        "max_p99_tpot_ms": 20.0
+      },
+      "tags": [
+        "v2",
+        "capability",
+        "rag"
+      ],
+      "extra_args": [
+        "--ignore-eos"
+      ]
+    },
+    {
+      "key": "v2-single-longctx-65k-c1",
+      "name": "v2·单流·长上下文 65K/8K（能力基线）",
+      "family": "v2-standard",
+      "description": "层A 能力基线：65K 输入单流（真 128K/200K 档见 prod-longctx-128k-c1 / prod-longctx-200k-c1）。注意：旧 ② 表头误标 200K，实际即本形状。request_rate=0.1 仅保证槽位不空转（S≈87s）。",
+      "backend": "sglang",
+      "base_url": "http://10.66.3.32:8001",
+      "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "dataset_name": "random",
+      "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+      "num_prompts": 20,
+      "max_concurrency": 1,
+      "random_input": 65536,
+      "random_output": 8192,
+      "random_range_ratio": 1.0,
+      "request_rate": 0.1,
+      "pd_separated": true,
+      "sla": {
+        "min_success_rate": 1.0,
+        "max_failed_requests": 0,
+        "max_p99_ttft_ms": 30000.0,
+        "max_p99_tpot_ms": 25.0
+      },
+      "tags": [
+        "v2",
+        "capability",
+        "long-context"
+      ],
+      "extra_args": [
+        "--ignore-eos"
+      ]
+    },
+    {
+      "key": "v2-conc-16-standard",
+      "name": "v2·16 并发·通用文本（低水位）",
+      "family": "v2-standard",
+      "description": "层A 闭合环并发阶梯（低）。rate=6.0 是【填满速率】而非负荷：仅需 rate ≥ 1.5×conc/S 保证槽位占满，实际负荷由 max_concurrency 决定。conc 16 < N_sat≈45，处未饱和区。",
+      "backend": "sglang",
+      "base_url": "http://10.66.3.32:8001",
+      "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "dataset_name": "random",
+      "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+      "num_prompts": 200,
+      "max_concurrency": 16,
+      "random_input": 4096,
+      "random_output": 2048,
+      "random_range_ratio": 1.0,
+      "request_rate": 6.0,
+      "pd_separated": true,
+      "sla": {
+        "min_success_rate": 1.0,
+        "max_failed_requests": 0,
+        "max_p99_ttft_ms": 3000.0,
+        "max_p99_tpot_ms": 30.0
+      },
+      "tags": [
+        "v2",
+        "concurrency",
+        "low",
+        "gate"
+      ],
+      "extra_args": [
+        "--ignore-eos"
+      ]
+    },
+    {
+      "key": "v2-conc-32-standard",
+      "name": "v2·32 并发·通用文本（低-中水位）",
+      "family": "v2-standard",
+      "description": "层A 闭合环并发阶梯（低-中）。替代旧 conc-32-deepseek：去掉『Decode 满配』因果（实测瓶颈由引擎 cap 决定，非本档），rate 明确为填满速率。",
+      "backend": "sglang",
+      "base_url": "http://10.66.3.32:8001",
+      "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "dataset_name": "random",
+      "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+      "num_prompts": 200,
+      "max_concurrency": 32,
+      "random_input": 4096,
+      "random_output": 2048,
+      "random_range_ratio": 1.0,
+      "request_rate": 6.0,
+      "pd_separated": true,
+      "sla": {
+        "min_success_rate": 1.0,
+        "max_failed_requests": 0,
+        "max_p99_ttft_ms": 3000.0,
+        "max_p99_tpot_ms": 30.0
+      },
+      "tags": [
+        "v2",
+        "concurrency",
+        "low",
+        "gate"
+      ],
+      "extra_args": [
+        "--ignore-eos"
+      ]
+    },
+    {
+      "key": "v2-conc-64-standard",
+      "name": "v2·64 并发·通用文本（中水位·生产主线）",
+      "family": "v2-standard",
+      "description": "层A 闭合环并发阶梯（中）。pernode c48 实测 2.16-2.38s / 21.6ms；旧 PP1 时代同档 TTFT 130.6s 全部来自 max-running=10 的排队，与本档无关——跑前必须记录 cap 与拓扑。",
+      "backend": "sglang",
+      "base_url": "http://10.66.3.32:8001",
+      "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "dataset_name": "random",
+      "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+      "num_prompts": 300,
+      "max_concurrency": 64,
+      "random_input": 4096,
+      "random_output": 2048,
+      "random_range_ratio": 1.0,
+      "request_rate": 6.0,
+      "pd_separated": true,
+      "sla": {
+        "min_success_rate": 1.0,
+        "max_failed_requests": 0,
+        "max_p99_ttft_ms": 4000.0,
+        "max_p99_tpot_ms": 35.0
+      },
+      "tags": [
+        "v2",
+        "concurrency",
+        "mid",
+        "gate"
+      ],
+      "extra_args": [
+        "--ignore-eos"
+      ]
+    },
+    {
+      "key": "v2-conc-96-standard",
+      "name": "v2·96 并发·通用文本（中-高水位·knee 档）",
+      "family": "v2-standard",
+      "description": "层A 新增档：历史 retract 线 ≈96，正是旧表 64→128 之间的空白区，用于定位吞吐/延迟拐点。",
+      "backend": "sglang",
+      "base_url": "http://10.66.3.32:8001",
+      "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "dataset_name": "random",
+      "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+      "num_prompts": 300,
+      "max_concurrency": 96,
+      "random_input": 4096,
+      "random_output": 2048,
+      "random_range_ratio": 1.0,
+      "request_rate": 8.0,
+      "pd_separated": true,
+      "sla": {
+        "min_success_rate": 1.0,
+        "max_failed_requests": 0,
+        "max_p99_ttft_ms": 4000.0,
+        "max_p99_tpot_ms": 35.0
+      },
+      "tags": [
+        "v2",
+        "concurrency",
+        "mid",
+        "gate"
+      ],
+      "extra_args": [
+        "--ignore-eos"
+      ]
+    },
+    {
+      "key": "v2-conc-128-standard",
+      "name": "v2·128 并发·通用文本（高水位）",
+      "family": "v2-standard",
+      "description": "层A 闭合环并发阶梯（高）。替代旧 conc-128-deepseek-safe：去掉『-safe/安全档』命名——安全档由门禁（0 失败 + SLO）定义，边界由 known-failure 探针钉死，不靠名字。pernode c48 实测 1.48s / 18.2ms。",
+      "backend": "sglang",
+      "base_url": "http://10.66.3.32:8001",
+      "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "dataset_name": "random",
+      "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+      "num_prompts": 300,
+      "max_concurrency": 128,
+      "random_input": 4096,
+      "random_output": 2048,
+      "random_range_ratio": 1.0,
+      "request_rate": 8.0,
+      "pd_separated": true,
+      "sla": {
+        "min_success_rate": 1.0,
+        "max_failed_requests": 0,
+        "max_p99_ttft_ms": 4000.0,
+        "max_p99_tpot_ms": 40.0
+      },
+      "tags": [
+        "v2",
+        "concurrency",
+        "high",
+        "gate"
+      ],
+      "extra_args": [
+        "--ignore-eos"
+      ]
+    },
+    {
+      "key": "v2-conc-160-standard",
+      "name": "v2·160 并发·通用文本（吞吐峰值档）",
+      "family": "v2-standard",
+      "description": "层A 新增档：pernode c48 实测 conc160 @ rate5 = TTFT 2.00s / p99 8.6s / TPOT 18.9ms / 3354 tok/s（当前吞吐峰值，零失败）。SLA 的 9000ms 按该实测留余量。",
+      "backend": "sglang",
+      "base_url": "http://10.66.3.32:8001",
+      "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "dataset_name": "random",
+      "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+      "num_prompts": 300,
+      "max_concurrency": 160,
+      "random_input": 4096,
+      "random_output": 2048,
+      "random_range_ratio": 1.0,
+      "request_rate": 8.0,
+      "pd_separated": true,
+      "sla": {
+        "min_success_rate": 1.0,
+        "max_failed_requests": 0,
+        "max_p99_ttft_ms": 9000.0,
+        "max_p99_tpot_ms": 40.0,
+        "min_output_token_throughput_tok_s": 2800.0
+      },
+      "tags": [
+        "v2",
+        "concurrency",
+        "high",
+        "throughput-peak",
+        "gate"
+      ],
+      "extra_args": [
+        "--ignore-eos"
+      ]
+    },
+    {
+      "key": "v2-longctx-65k-c8",
+      "name": "v2·长上下文 65K × 8 并发（稳定档）",
+      "family": "v2-standard",
+      "description": "65K 形状饱和并发 N_sat≈8-11，故稳定档取 c8（旧 ⑥ 用 c32 是 3× 过载）。替代旧 conc-32-longctx-deepseek 的稳定版；rate=1.0 为填满速率。",
+      "backend": "sglang",
+      "base_url": "http://10.66.3.32:8001",
+      "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "dataset_name": "random",
+      "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+      "num_prompts": 40,
+      "max_concurrency": 8,
+      "random_input": 65536,
+      "random_output": 8192,
+      "random_range_ratio": 1.0,
+      "request_rate": 1.0,
+      "pd_separated": true,
+      "sla": {
+        "min_success_rate": 1.0,
+        "max_failed_requests": 0,
+        "max_p99_ttft_ms": 60000.0,
+        "max_p99_tpot_ms": 40.0
+      },
+      "tags": [
+        "v2",
+        "long-context",
+        "stable",
+        "gate"
+      ],
+      "extra_args": [
+        "--ignore-eos"
+      ]
+    },
+    {
+      "key": "v2-boundary-longctx-65k-c32",
+      "name": "v2·边界探针：长上下文 65K × 32 并发",
+      "family": "v2-standard",
+      "description": "known-failure 探针（原 ⑥ 降级而来）：65K 形状 N_sat≈8-11，c32 是 3× 过载。旧实测 121min / p99 TTFT 305.5s / TPOT 224.6ms，且超 2h wrapper 仅 62s 致 run 记 failed。务必 --timeout 3h；预期失败，勿入门禁。",
+      "backend": "sglang",
+      "base_url": "http://10.66.3.32:8001",
+      "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "dataset_name": "random",
+      "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+      "num_prompts": 50,
+      "max_concurrency": 32,
+      "random_input": 65536,
+      "random_output": 8192,
+      "random_range_ratio": 1.0,
+      "request_rate": 1.0,
+      "pd_separated": true,
+      "sla": {
+        "min_success_rate": 1.0,
+        "max_failed_requests": 0,
+        "max_p99_ttft_ms": 180000.0,
+        "max_p99_tpot_ms": 300.0
+      },
+      "tags": [
+        "v2",
+        "long-context",
+        "boundary",
+        "known-failure"
+      ],
+      "extra_args": [
+        "--ignore-eos"
+      ]
+    },
+    {
+      "key": "v2-boundary-standard-c256",
+      "name": "v2·边界探针：通用文本 256 并发",
+      "family": "v2-standard",
+      "description": "known-failure 探针：conc 256 远超每引擎 cap48（×4=192 总量），必现服务端准入排队；旧代属红区/未测区。用于钉死『安全并发上墙』。预期失败，勿入门禁；建议 --timeout 1.5h。",
+      "backend": "sglang",
+      "base_url": "http://10.66.3.32:8001",
+      "model": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "tokenizer": "/workspace/data/DeepSeek-V4-Flash-FlexSMQ-AWQ-W8A8",
+      "dataset_name": "random",
+      "dataset_path": "/workspace/ShareGPT_V3_unfiltered_cleaned_split.json",
+      "num_prompts": 400,
+      "max_concurrency": 256,
+      "random_input": 4096,
+      "random_output": 2048,
+      "random_range_ratio": 1.0,
+      "request_rate": 8.0,
+      "pd_separated": true,
+      "sla": {
+        "min_success_rate": 1.0,
+        "max_failed_requests": 0,
+        "max_p99_ttft_ms": 60000.0,
+        "max_p99_tpot_ms": 300.0
+      },
+      "tags": [
+        "v2",
+        "boundary",
+        "known-failure"
+      ],
+      "extra_args": [
+        "--ignore-eos"
+      ]
+    }
+  ],
+  "_note": "长度口径（2026-10-12 实测核查）：本集群 bench_serving 在 --random-range-ratio 1.0 下输入长度恒等于标称值（400+ 个 run 的 input_len 完全无分布）；但 --random-output-len 只是上限，EOS 会提前终止生成 —— 实测同一场景跨 run 的实际输出长度在 0.11–1.00×标称之间漂移（如 conc-64-deepseek 在 0.38–1.00）。因此本套场景统一加 --ignore-eos 锁死输出长度，使 tok/s / TPOT 跨 run 可比。首次使用请先冒烟：若现场版本报 unrecognized arguments: --ignore-eos，删掉各行的 extra_args 字段后用 tools/audit_run_lengths.py 按实测长度归一。"
+}

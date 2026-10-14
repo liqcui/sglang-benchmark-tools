@@ -1,7 +1,7 @@
 {
   "cluster": "metax-c500-{{CLUSTER_SUBNET}}",
   "namespace": "metax-ai-pd",
-  "deployment": "0731 pp4-official 全量 (pp4×tp8=32卡, 足迹待实测)",
+  "deployment": "deepseek-v4-flash-0731-official-pp4 (official llm-launch, prefill pp4/tp8/dp1; prod-suite 形态3 pp4full)",
   "prefill_nodes": 4,
   "decode_nodes": 4,
   "gpu_per_node": 8,
@@ -35,5 +35,5 @@
   "engine_version": "sglang 0.5.14 (torch 2.10, py3.12; DSPARK speculative)",
   "model": "/workspace/data/DeepSeek-V4-Flash-0731-W8A8",
   "served_model_name": "DeepSeek-V4-Flash",
-  "notes": "pp4-official 全量对照 (2026-10-13): 目标 8卡/节点 (pp4×tp8=32); ⚠ 其\"2卡/节点\"为同族推断未实测——首启后按 mx-smi 实测足迹, 不符则查 vendor 布局派生; aligned 配置 (单轨 ib / decode chunked 4096→×dp=16384)"
+  "notes": "prod-suite 形态3 (pp4full): 内容沿用 10-10 PP4 战役 env (dsv4-0731-pp4off.json); 厂商推荐默认拓扑 (prefill pp4/tp8/dp1; tp=32/pp); decode 与 PP1 侧对齐 (tp8/dp4/ep1+DSPARK); L2 off; 镜像=-llm-retractfix (digest 46db2551); ⚠ 8卡/节点足迹为推断, 启动后按 mx-smi 实测"
 }

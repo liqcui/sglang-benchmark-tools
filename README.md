@@ -207,7 +207,9 @@ sglbench run --scenario conc-128-safe --set max_concurrency=96 --set request_rat
 |---|---|
 | `sglbench scenarios [list\|show KEY\|export]` | 场景目录；`show` 会连执行命令一起打印 |
 | `sglbench preflight --scenario KEY [--url ...]` | 连通性预检（流式 TTFT、`[DONE]` 完整性、HTTP 状态），结果入库 |
-| `sglbench run --scenario KEY [--label L] [--repeat N] [--dry-run] [--exec local\|docker\|kubectl]` | 执行压测并归档入库（`--exec` 选择容器/pod 执行通道） |
+| `sglbench run --scenario KEY [--label L] [--repeat N] [--dry-run] [--exec local\|docker\|kubectl] [--eval-after SUBSET]` | 执行压测并归档入库（`--exec` 选择容器/pod 执行通道；`--eval-after` 成功后自动跑精度评测） |
+| `sglbench eval --scenario KEY [--subset smoke] [--tasks a,b] [--limit-n N] [--baseline ID] [--endpoint-kind auto\|chat\|completions] [--dry-run]` | **精度评测**（lm-eval 子集）：检测量化/升级/调参是否引入精度退化；与基线逐指标出 Δ |
+| `sglbench eval list [--scenario-filter K] [--subset S]` / `eval show EVAL_ID` | 历史精度评测列表 / 单条详情（含与基线差值） |
 | `sglbench ingest PATH... [--infer]` | 导入已有日志（幂等：内容相同则跳过） |
 | `sglbench list [--scenario K] [--family F] [--status S]` | 历史 run 列表 |
 | `sglbench show RUN` | 单个 run 的指标、分布、门禁、异常日志 |
@@ -216,7 +218,7 @@ sglbench run --scenario conc-128-safe --set max_concurrency=96 --set request_rat
 | `sglbench report ... -o out.html [--sweep] [--sweep-label A --sweep-label B]` | 生成自包含 HTML（可同时导出 Markdown / JSON） |
 | `sglbench dashboard --pair A=B -o out.html` | 跨场景对比仪表盘（multiturn 场景自动附加**多轮断崖曲线**） |
 | `sglbench campaign report --pair 'A*=B*' -o DIR/ [--no-md]` | **完整战役报告**：index.html（受控条件差异/Δ 热图/全表/断崖曲线/结论）+ SUMMARY.md + 每场景明细 |
-| `sglbench campaign run <spec.json> --side S [--only P] [--force] [--dry-run] [--report-dir D]` | **战役执行器**：逐场景执行（已有 ok run 且 env 指纹一致自动跳过；`--dry-run` 先看计划；收尾自动出完整报告） |
+| `sglbench campaign run <spec.json> --side S [--only P] [--force] [--dry-run] [--report-dir D] [--eval-after SUBSET]` | **战役执行器**：逐场景执行（已有 ok run 且 env 指纹一致自动跳过；`--dry-run` 先看计划；收尾自动出完整报告；`--eval-after` 每个 ok 场景后自动跑精度评测） |
 | `sglbench trend --scenario K [--label L]... [--metric M]... [--html out]` | **指标趋势时间线**（跨 run 回归跟踪；非 ok run 空心红圈标记） |
 | `sglbench recover [--from-pods\|--node X] [--gpus 0,4\|all] [--dry-run] [--no-rebuild]` | **GPU 热复位+pod 重建**（ssh mx-smi；显式触发；`--dry-run` 先看计划） |
 | `sglbench forensics <run_id> [--json]` | **崩溃取证**（pods/events/节点日志/GPU 采集 + xnack/mv0x4 等签名提取；非 ok run 自动触发） |
@@ -233,6 +235,54 @@ sglbench run --scenario conc-128-safe --set max_concurrency=96 --set request_rat
 `--scenario-file FILE`、`--threshold-pct 5`（噪声阈值）、`--all-metrics`、
 `--timeout 30m`、`--no-dump-requests`、`--fail-on-bad`、`--fail-on-gate`。
 
+### 5.1 精度评测：压测的配套回路
+
+**为什么需要**：性能压测只回答「多快」，回答不了「多准」。一次量化、KV 精度、
+引擎升级的改动，可能让吞吐漂亮地上升，却把准确率悄悄拉低 —— 只测性能的套件
+发现不了这种退化。`sglbench eval` 把 lm-eval 的一个小规模子集接到压测收尾，
+形成闭合的质量门。
+
+```bash
+# ① 单跑一次精度评测（先 dry-run 看命令）
+sglbench eval --scenario prod-standard-c64 --subset smoke --dry-run
+sglbench eval --scenario prod-standard-c64 --subset smoke
+
+# ② 自定义任务 / 缩小样本
+sglbench eval --scenario prod-standard-c64 --tasks gsm8k,mmlu --limit-n 100 --num-fewshot 5
+
+# ③ 压测成功后自动评测（推荐：一次命令拿到性能 + 精度）
+sglbench run --scenario prod-standard-c64 --eval-after smoke
+
+# ④ 战役内每个 ok 场景后自动评测（spec 里写 "eval_after": "smoke" 或命令行 --eval-after smoke）
+sglbench campaign run campaigns/production-suite.json --side prod --eval-after smoke
+
+# ⑤ 查看历史与基线对比
+sglbench eval list --scenario-filter prod-standard-c64
+sglbench eval show <eval_id>          # 自动显示与基线的逐指标 Δ(pp)
+```
+
+**三个关键设计**
+
+1. **默认不跑，opt-in**。评测要真打模型（耗时、占卡），所以只在你显式给
+   `--eval-after` / `eval_after` 时才触发；缺省压测行为不变。
+2. **best-effort，永不阻断压测**。钩子里任何异常（lm-eval 未装、端点不可达、
+   解析失败）都被吞掉，只打印一行跳过原因 —— 性能测试不能被质量检查拖垮。
+3. **口径固化，可比**。子集名 + 任务清单 + `num_fewshot` + `limit` +
+   `apply_chat_template` 全部入库（`quality_evals` 表）；自动基线取「同场景同子集
+   最近一次 ok」，产出逐指标 Δ（百分点）。
+
+**子集定义**：`envs/eval-subsets.json`（内置 `smoke` / `regression` / `full` 三档，
+可覆盖或新增）。查找顺序：`--eval-file` > `<home>/eval-subsets.json` >
+`<cwd>/envs/eval-subsets.json` > 内置默认。
+
+**端点选择**：`--endpoint-kind auto|chat|completions`。`auto` 按场景 `backend`
+推断（含 `chat` → `/v1/chat/completions`，否则 `/v1/completions`）。instruct 模型
+两种都合法：`local-completions` + `--apply_chat_template`（把 chat 模板渲染成
+prompt 打 completions 端点），或直接打 chat 端点。
+
+**前置依赖**：跑真实评测的机器需要 `pip install lm-eval`（即 `python -m lm_eval`
+可用）。未安装时钩子会安全跳过，不影响压测。
+
 ---
 
 ## 6. 数据模型
@@ -240,12 +290,18 @@ sglbench run --scenario conc-128-safe --set max_concurrency=96 --set request_rat
 ```
 data/
 ├── bench.duckdb                    # 分析库（可从工件重建）
-└── runs/<run_id>/                  # 不可变工件
-    ├── run.json                    # 归一化记录
-    ├── command.txt                 # 完整命令行
-    ├── stdout.log                  # 压测原始输出（含 stderr）
-    ├── requests.jsonl              # 每请求明细（分布分析原始数据）
-    └── meta.json                   # 环境快照（python/sglang/git/平台/内容指纹）
+├── runs/<run_id>/                  # 不可变工件
+│   ├── run.json                    # 归一化记录
+│   ├── command.txt                 # 完整命令行
+│   ├── stdout.log                  # 压测原始输出（含 stderr）
+│   ├── requests.jsonl              # 每请求明细（分布分析原始数据）
+│   └── meta.json                   # 环境快照（python/sglang/git/平台/内容指纹）
+└── evals/<eval_id>/                # 不可变精度评测工件
+    ├── eval.json                   # 归一化记录（含指标与基线 Δ）
+    ├── command.txt                 # 完整 lm_eval 命令
+    ├── lm_eval.log                 # lm-eval 原始输出
+    ├── results.json                # lm-eval results 段（原始）
+    └── meta.json                   # 环境快照
 ```
 
 DuckDB 表：
@@ -259,7 +315,10 @@ DuckDB 表：
 | `run_environments` | 部署环境快照（拓扑/镜像/HiCache 参数/MACA 版本，31 列结构化） |
 | `run_forensics` | 崩溃取证摘要（签名/证据目录/采集方式，agent 可直接 SQL 归因） |
 | `preflight_checks` | 预检记录 |
+| `quality_evals` | 每次精度评测的头（子集/任务/few-shot/limit/基线/Δ） |
+| `quality_metrics` | 长表 `(eval_id, metric_key) -> value`（任务得分，如 `gsm8k:acc,none`） |
 | `v_run_metrics` | 便于手写 SQL 的宽表视图 |
+| `v_quality_metrics` | 精度评测宽表视图（eval × task × metric） |
 
 手写 SQL 例子：
 

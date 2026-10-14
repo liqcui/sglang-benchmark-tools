@@ -5,6 +5,7 @@
     scenarios   查看内置/自定义场景目录
     preflight   压测前连通性预检（对应文档第六节）
     run         执行一次/多次场景压测并落盘入库
+    eval        精度评测（lm-eval 子集）—— 检测精度退化；run --eval-after 可自动触发
     ingest      把已有日志（集群 nohup 产物）导入成 run
     list        列出历史 run
     show        查看单个 run 的指标与异常
@@ -295,6 +296,25 @@ def cmd_run(args: argparse.Namespace) -> int:
         if store:
             store.save_run(outcome.record)
         _maybe_forensics(args, paths, store, outcome.record)
+        if (
+            outcome.record.status == "ok"
+            and getattr(args, "eval_after", None)
+            and index == repeats - 1
+        ):
+            from .quality import run_eval_after
+
+            run_eval_after(
+                paths,
+                scenario,
+                subset_name=args.eval_after,
+                eval_file=getattr(args, "eval_file", None),
+                store=store,
+                linked_run_id=outcome.record.run_id,
+                label=args.label or scenario.key,
+                python=args.python,
+                timeout_s=getattr(args, "eval_timeout", None),
+                on_line=_eprint,
+            )
         if outcome.record.status != "ok":
             failures += 1
         metrics = outcome.record.metrics
@@ -961,10 +981,160 @@ def cmd_preflight(args: argparse.Namespace) -> int:
     return EXIT_OK if all(r.ok for r in results) else EXIT_FAIL
 
 
+# --------------------------------------------------------------------------- #
+# eval（精度评测：lm-eval 子集）
+# --------------------------------------------------------------------------- #
+
+
+def _split_csv(value: str | None) -> list[str]:
+    return [t.strip() for t in (value or "").split(",") if t.strip()]
+
+
+def cmd_eval(args: argparse.Namespace) -> int:
+    """跑一次精度评测（lm-eval 子集）；或列出/查看历史评测。"""
+    from .quality import (
+        archive_eval,
+        build_eval_command,
+        command_string,
+        latest_baseline,
+        load_subsets,
+        render_eval_console,
+        render_eval_plan,
+        resolve_subset,
+        run_eval,
+    )
+    from .util import new_run_id
+
+    paths = _paths(args)
+    action = getattr(args, "action", None) or "run"
+    store = None if args.no_store else Store(paths.db)
+    try:
+        return _cmd_eval_inner(args, paths, action, store)
+    finally:
+        if store is not None:
+            store.close()
+
+
+def _cmd_eval_inner(args: argparse.Namespace, paths, action: str, store) -> int:
+    from .quality import (
+        archive_eval,
+        build_eval_command,
+        command_string,
+        latest_baseline,
+        load_subsets,
+        render_eval_console,
+        render_eval_plan,
+        resolve_subset,
+        run_eval,
+    )
+    from .util import new_run_id
+
+    if action == "list":
+        if store is None:
+            raise UsageError("list 需要数据库（不要加 --no-store）")
+        rows = store.list_quality_evals(
+            limit=args.limit,
+            scenario_key=args.scenario_filter,
+            subset=args.subset,
+        )
+        if args.json:
+            print(json.dumps(rows, ensure_ascii=False, indent=2, default=str))
+        else:
+            from .quality import render_list_console
+
+            print(render_list_console(rows))
+        return EXIT_OK
+
+    if action == "show":
+        if store is None:
+            raise UsageError("show 需要数据库（不要加 --no-store）")
+        if not args.key:
+            raise UsageError("请给出 eval_id：sglbench eval show <eval_id>")
+        ev = store.get_quality_eval(args.key)
+        if ev is None:
+            _eprint(f"❌ 评测不存在: {args.key}")
+            return EXIT_FAIL
+        if args.json:
+            print(json.dumps(ev.to_dict(), ensure_ascii=False, indent=2, default=str))
+        else:
+            base = store.get_quality_eval(ev.baseline_id) if ev.baseline_id else None
+            print(render_eval_console(ev, base))
+        return EXIT_OK
+
+    # ---- action == run ----
+    if not args.scenario:
+        raise UsageError("请用 --scenario 指定要评测的场景（或 `sglbench eval list` 查看历史）")
+    scenario = _scenario(args, args.scenario)
+    if args.set:
+        scenario = apply_set(scenario, parse_kv(args.set))
+
+    subsets = load_subsets(args.eval_file, home=paths.home)
+    try:
+        subset = resolve_subset(
+            args.subset,
+            subsets,
+            tasks=_split_csv(args.tasks),
+            num_fewshot=args.num_fewshot,
+            limit=args.limit_n,
+            apply_chat_template=(False if args.no_chat_template else None),
+        )
+    except KeyError as exc:
+        raise UsageError(str(exc))
+
+    eval_id = args.eval_id or new_run_id(f"eval-{scenario.key}")
+    out_dir = Path(args.out_dir) if args.out_dir else paths.eval_dir(eval_id)
+    endpoint_kind = None if args.endpoint_kind == "auto" else args.endpoint_kind
+
+    if args.dry_run:
+        cmd = build_eval_command(
+            scenario, subset, output_path=str(out_dir),
+            python=args.python or "python3", extra_args=args.extra_arg,
+            endpoint_kind=endpoint_kind, timeout_s=args.timeout_s,
+        )
+        if args.json:
+            print(json.dumps({"command": cmd, "subset": subset.to_dict()}, ensure_ascii=False, indent=2))
+        else:
+            print(f"# 精度评测: {scenario.key}  子集={subset.name}  任务={','.join(subset.tasks)}")
+            print(command_string(cmd))
+        return EXIT_OK
+
+    baseline = None
+    if args.baseline:
+        baseline = store.get_quality_eval(args.baseline) if store else None
+        if baseline is None:
+            raise UsageError(f"基线评测不存在: {args.baseline}")
+    elif not args.no_auto_baseline and store is not None:
+        baseline = latest_baseline(store, scenario.key, subset.name, exclude_id=eval_id)
+
+    _eprint(f"▶ 精度评测 {scenario.key}  子集={subset.name}  任务={','.join(subset.tasks)} …")
+    ev = run_eval(
+        scenario, subset,
+        eval_id=eval_id,
+        label=args.label or scenario.key,
+        linked_run_id=args.run_id or "",
+        python=args.python,
+        out_dir=out_dir,
+        extra_args=args.extra_arg,
+        endpoint_kind=endpoint_kind,
+        timeout_s=args.timeout_s,
+        baseline=baseline,
+        notes=args.notes or "",
+    )
+    log_path = out_dir / "lm_eval.log"
+    log_text = log_path.read_text(encoding="utf-8", errors="replace") if log_path.exists() else ""
+    archive_eval(paths, ev, store=store, log_text=log_text)
+
+    if args.json:
+        print(json.dumps(ev.to_dict(), ensure_ascii=False, indent=2, default=str))
+    else:
+        _eprint(render_eval_plan(ev))
+        print(render_eval_console(ev, baseline))
+    return EXIT_OK if ev.status == "ok" else EXIT_FAIL
+
+
 def _copy_literal(path: Path) -> str:
     """DuckDB COPY 目标路径只能用字面量，这里做最小的单引号转义。"""
     return "'" + str(path).replace("'", "''") + "'"
-
 
 def cmd_export(args: argparse.Namespace) -> int:
     paths = _paths(args)
@@ -1153,10 +1323,13 @@ def cmd_campaign_run(args: argparse.Namespace) -> int:
         _eprint(f"❌ {exc}")
         return EXIT_FAIL
     with Store(paths.db) as store:
+        catalog = _catalog(args)
+        eval_after = getattr(args, "eval_after", None)
         if args.dry_run:
             try:
                 result = run_campaign(paths, spec, side=args.side, only=args.only,
-                                      force=args.force, dry_run=True, store=store)
+                                      force=args.force, dry_run=True, store=store,
+                                      catalog=catalog, eval_after=eval_after)
             except ValueError as exc:
                 _eprint(f"❌ {exc}")
                 return EXIT_FAIL
@@ -1165,7 +1338,8 @@ def cmd_campaign_run(args: argparse.Namespace) -> int:
             return EXIT_OK
         try:
             result = run_campaign(paths, spec, side=args.side, only=args.only,
-                                  force=args.force, store=store)
+                                  force=args.force, store=store, catalog=catalog,
+                                  eval_after=eval_after)
         except ValueError as exc:
             _eprint(f"❌ {exc}")
             return EXIT_FAIL
@@ -1375,6 +1549,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--no-forensics", action="store_true", help="非 ok 时不做自动取证")
     p.add_argument("--retry-wait", type=float, default=900.0, metavar="SEC",
                    help="--auto-retry 每次等待健康的超时秒数（默认 900）")
+    p.add_argument("--eval-after", metavar="SUBSET",
+                   help="压测成功后自动跑一次精度评测（如 smoke；见 <home>/eval-subsets.json）")
+    p.add_argument("--eval-file", help="评测子集定义 JSON（配合 --eval-after）")
+    p.add_argument("--eval-timeout", type=float, default=1800.0,
+                   help="--eval-after 评测子进程超时秒数（默认 1800）")
     p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE", help="覆盖场景参数，如 max_concurrency=64")
     p.add_argument("--python", help="解释器（默认 python3）")
     p.add_argument("--module", default=BENCH_MODULE)
@@ -1390,6 +1569,41 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--verbose", action="store_true", help="实时回显压测输出")
     p.add_argument("--env-file", help="部署环境元数据 JSON（覆盖默认/自动探测；记入 run_environments 表）")
     p.set_defaults(func=cmd_run)
+
+    # eval（精度评测：lm-eval 子集 —— 压测的配套回路，检测精度退化）
+    p = sub.add_parser("eval", help="精度评测（lm-eval 子集）—— 检测量化/升级是否引入精度退化")
+    _add_common(p)
+    p.add_argument("action", nargs="?", choices=["run", "list", "show"], default="run")
+    p.add_argument("key", nargs="?", help="show 时的 eval_id")
+    p.add_argument("--scenario", help="run 时的场景 key（提供端点/模型）")
+    p.add_argument("--subset", help="命名子集（默认 smoke；见 envs/eval-subsets.json）")
+    p.add_argument("--tasks", help="逗号分隔的 lm-eval 任务（覆盖子集任务清单）")
+    p.add_argument("--num-fewshot", type=int, help="few-shot 数（覆盖子集）")
+    p.add_argument("--limit-n", type=float, help="每任务样本数上限（覆盖子集）")
+    p.add_argument("--no-chat-template", action="store_true", help="不传 --apply_chat_template")
+    p.add_argument("--endpoint-kind", choices=["auto", "chat", "completions"], default="auto",
+                   help="lm-eval 打的端点：auto=按 backend 推断，chat=/v1/chat/completions，completions=/v1/completions")
+    p.add_argument("--eval-file", help="评测子集定义 JSON（默认 <home>/eval-subsets.json）")
+    p.add_argument("--baseline", help="指定基线 eval_id 做差值对比")
+    p.add_argument("--no-auto-baseline", action="store_true",
+                   help="不自动取同场景最近一次 ok 评测作基线")
+    p.add_argument("--run-id", help="关联的性能 run_id（记录在哪次压测之后做的评测）")
+    p.add_argument("--eval-id", help="指定 eval_id")
+    p.add_argument("--label", help="标签（默认场景 key）")
+    p.add_argument("--notes", help="备注")
+    p.add_argument("--set", action="append", default=[], metavar="KEY=VALUE",
+                   help="覆盖场景参数（端点/模型等），如 base_url=http://x:8081")
+    p.add_argument("--python", help="跑 lm_eval 的解释器（默认 python3）")
+    p.add_argument("--extra-arg", action="append", default=[], metavar="ARG",
+                   help="追加给 lm_eval 的原始参数（可重复）")
+    p.add_argument("--timeout-s", type=float, default=1800.0, help="lm_eval 子进程超时秒数（默认 1800）")
+    p.add_argument("--out-dir", help="评测输出目录（默认 <home>/evals/<eval_id>）")
+    p.add_argument("--scenario-filter", help="list 时按场景筛选")
+    p.add_argument("--limit", type=int, default=20, help="list 时的条数上限")
+    p.add_argument("--dry-run", action="store_true", help="只打印 lm_eval 命令")
+    p.add_argument("--json", action="store_true")
+    p.add_argument("--no-store", action="store_true")
+    p.set_defaults(func=cmd_eval)
 
     # multiturn（HiCache 专项多轮对话基准）
     p = sub.add_parser("multiturn", help="HiCache 多轮对话基准（N 客户端 × R 轮，逐轮 TTFT/cache-hit）")
@@ -1449,6 +1663,8 @@ def build_parser() -> argparse.ArgumentParser:
     crun.add_argument("--force", action="store_true", help="已有 ok run 也重跑")
     crun.add_argument("--dry-run", action="store_true", help="只打印计划")
     crun.add_argument("--report-dir", help="结束后自动生成完整报告到该目录")
+    crun.add_argument("--eval-after", metavar="SUBSET",
+                      help="每个场景 ok 后自动跑该子集的精度评测（覆盖 spec 的 eval_after；空串关闭）")
     crun.add_argument("--json", action="store_true")
     crun.set_defaults(func=cmd_campaign_run)
 

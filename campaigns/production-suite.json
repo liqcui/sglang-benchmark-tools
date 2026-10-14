@@ -1,0 +1,60 @@
+{
+  "name": "production-suite",
+  "title": "生产画像压测套件（画像 × 低/中/高并发 × 容量点/边界）",
+  "exec": "kubectl",
+  "timeout": "45m",
+  "auto_retry": 2,
+  "gpu_reset": true,
+  "sides": {
+    "prod": {
+      "label": "prod-2026-10-pernode",
+      "env_file": "envs/dsv4-0731-pernode-c48.json"
+    },
+    "f4": {
+      "label": "prod-2026-10-f4",
+      "env_file": "envs/dsv4-0731-f4.json"
+    },
+    "pp4full": {
+      "label": "prod-2026-10-pp4full",
+      "env_file": "envs/dsv4-0731-pp4full.json"
+    },
+    "pp4full-nospark": {
+      "label": "prod-2026-10-nospark",
+      "env_file": "envs/dsv4-0731-pp4full-nospark.json"
+    }
+  },
+  "scenarios": [
+    "prod-chat-c1",
+    "prod-rag-c1",
+    "prod-code-c1",
+    "prod-standard-c16",
+    "prod-standard-c32",
+    "prod-standard-c64",
+    "prod-standard-c96",
+    "prod-standard-c128",
+    "prod-standard-c160",
+    "prod-chat-c16",
+    "prod-chat-c64",
+    "prod-chat-c128",
+    "prod-rag-c16",
+    "prod-rag-c64",
+    "prod-rag-c128",
+    "prod-code-c16",
+    "prod-code-c64",
+    "prod-code-c128",
+    "prod-longctx-65k-c1",
+    "prod-longctx-65k-c8",
+    "prod-longctx-128k-c1",
+    "prod-longctx-200k-c1",
+    "prod-steady-standard-r2",
+    {
+      "key": "prod-boundary-standard-c256",
+      "repeats": 2
+    },
+    {
+      "key": "prod-boundary-longctx-c32",
+      "repeats": 2
+    }
+  ],
+  "output_dir": "reports/prod-suite"
+}

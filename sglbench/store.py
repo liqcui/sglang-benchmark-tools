@@ -15,6 +15,8 @@
 ``samples_meta``      每请求明细的行数（用于判断是否真的落盘了）
 ``run_forensics``    崩溃取证摘要（签名/证据目录, agent 归因）
 ``preflight_checks`` 连通性预检记录
+``quality_evals``    精度评测头（lm-eval 子集一次跑）
+``quality_metrics``  长表：``(eval_id, metric_key) -> value``（任务得分）
 """
 
 from __future__ import annotations
@@ -26,10 +28,10 @@ from pathlib import Path
 from typing import Any, Iterable, Mapping, Sequence
 
 from . import __version__
-from .models import Issue, RunRecord, RunSummary, Sample, Scenario
+from .models import Issue, QualityEval, RunRecord, RunSummary, Sample, Scenario
 from .util import iso, parse_iso, utcnow
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 _DDL: tuple[str, ...] = (
     """
@@ -168,11 +170,55 @@ _DDL: tuple[str, ...] = (
     )
     """,
     """
+    CREATE TABLE IF NOT EXISTS quality_evals (
+        eval_id       VARCHAR PRIMARY KEY,
+        run_id        VARCHAR,
+        scenario_key  VARCHAR,
+        label         VARCHAR,
+        subset        VARCHAR,
+        status        VARCHAR,
+        endpoint      VARCHAR,
+        model         VARCHAR,
+        tokenizer     VARCHAR,
+        lm_eval_cmd   VARCHAR,
+        tasks_json    VARCHAR,
+        num_fewshot   INTEGER,
+        limit_n       DOUBLE,
+        started_at    TIMESTAMP,
+        finished_at   TIMESTAMP,
+        wall_s        DOUBLE,
+        results_json  VARCHAR,
+        raw_dir       VARCHAR,
+        baseline_id   VARCHAR,
+        deltas_json   VARCHAR,
+        notes         VARCHAR,
+        created_at    TIMESTAMP
+    )
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS quality_metrics (
+        eval_id          VARCHAR,
+        metric_key       VARCHAR,
+        task             VARCHAR,
+        metric           VARCHAR,
+        value            DOUBLE,
+        higher_is_better BOOLEAN,
+        PRIMARY KEY (eval_id, metric_key)
+    )
+    """,
+    """
     CREATE OR REPLACE VIEW v_run_metrics AS
     SELECT r.run_id, r.scenario_key, r.label, r.status, r.started_at,
            m.metric_key, m.value
     FROM runs r
     JOIN metrics m USING (run_id)
+    """,
+    """
+    CREATE OR REPLACE VIEW v_quality_metrics AS
+    SELECT q.eval_id, q.run_id, q.scenario_key, q.label, q.subset, q.started_at,
+           m.task, m.metric, m.value, m.higher_is_better
+    FROM quality_evals q
+    JOIN quality_metrics m USING (eval_id)
     """,
 )
 
@@ -764,19 +810,141 @@ class Store:
             "SELECT * FROM run_forensics ORDER BY collected_at DESC NULLS LAST LIMIT ?", [limit]
         )
 
+    # ---- 精度评测 ----
+    def save_quality_eval(self, ev: QualityEval) -> str:
+        """幂等写入一次精度评测（同 eval_id 覆盖，含明细指标）。"""
+        self.con.execute("DELETE FROM quality_metrics WHERE eval_id = ?", [ev.eval_id])
+        self.con.execute("DELETE FROM quality_evals WHERE eval_id = ?", [ev.eval_id])
+        self.con.execute(
+            """
+            INSERT INTO quality_evals (eval_id, run_id, scenario_key, label, subset, status,
+                                       endpoint, model, tokenizer, lm_eval_cmd, tasks_json,
+                                       num_fewshot, limit_n, started_at, finished_at, wall_s,
+                                       results_json, raw_dir, baseline_id, deltas_json, notes,
+                                       created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                ev.eval_id,
+                ev.run_id or None,
+                ev.scenario_key,
+                ev.label,
+                ev.subset,
+                ev.status,
+                ev.endpoint,
+                ev.model,
+                ev.tokenizer,
+                ev.lm_eval_cmd,
+                json.dumps(list(ev.tasks), ensure_ascii=False),
+                ev.num_fewshot,
+                ev.limit_n,
+                _to_ts(ev.started_at),
+                _to_ts(ev.finished_at),
+                ev.wall_s,
+                json.dumps(ev.results, ensure_ascii=False, default=str),
+                ev.raw_dir,
+                ev.baseline_id or None,
+                json.dumps(ev.deltas, ensure_ascii=False, default=str),
+                ev.notes,
+                _to_ts(utcnow()),
+            ],
+        )
+        if ev.metrics:
+            self.con.executemany(
+                "INSERT INTO quality_metrics (eval_id, metric_key, task, metric, value, higher_is_better) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                [
+                    (ev.eval_id, m.metric_key, m.task, m.metric, float(m.value), bool(m.higher_is_better))
+                    for m in ev.metrics
+                ],
+            )
+        return ev.eval_id
+
+    def get_quality_eval(self, eval_id: str) -> QualityEval | None:
+        rows = self.query("SELECT * FROM quality_evals WHERE eval_id = ?", [eval_id])
+        if not rows:
+            return None
+        return self._row_to_quality_eval(rows[0])
+
+    def list_quality_evals(
+        self, limit: int = 20, scenario_key: str | None = None, subset: str | None = None
+    ) -> list[dict[str, Any]]:
+        clauses: list[str] = []
+        params: list[Any] = []
+        if scenario_key:
+            clauses.append("scenario_key = ?")
+            params.append(scenario_key)
+        if subset:
+            clauses.append("subset = ?")
+            params.append(subset)
+        where = ("WHERE " + " AND ".join(clauses)) if clauses else ""
+        params.append(limit)
+        return self.query(
+            f"SELECT * FROM quality_evals {where} ORDER BY started_at DESC NULLS LAST LIMIT ?", params
+        )
+
+    def quality_metrics(self, eval_id: str) -> list[dict[str, Any]]:
+        return self.query(
+            "SELECT metric_key, task, metric, value, higher_is_better FROM quality_metrics "
+            "WHERE eval_id = ? ORDER BY task, metric_key",
+            [eval_id],
+        )
+
+    def _row_to_quality_eval(self, row: Mapping[str, Any]) -> QualityEval:
+        from .models import QualityMetric
+
+        metrics = [
+            QualityMetric(
+                metric_key=m["metric_key"],
+                value=float(m["value"]),
+                task=m.get("task") or "",
+                metric=m.get("metric") or "",
+                higher_is_better=bool(m.get("higher_is_better", True)),
+            )
+            for m in self.quality_metrics(row["eval_id"])
+        ]
+        return QualityEval(
+            eval_id=row["eval_id"],
+            scenario_key=row.get("scenario_key") or "",
+            label=row.get("label") or "",
+            subset=row.get("subset") or "",
+            status=row.get("status") or "ok",
+            run_id=row.get("run_id") or "",
+            endpoint=row.get("endpoint") or "",
+            model=row.get("model") or "",
+            tokenizer=row.get("tokenizer") or "",
+            lm_eval_cmd=row.get("lm_eval_cmd") or "",
+            tasks=list(json.loads(row.get("tasks_json") or "[]")),
+            num_fewshot=row.get("num_fewshot"),
+            limit_n=row.get("limit_n"),
+            started_at=_from_ts(row.get("started_at")),
+            finished_at=_from_ts(row.get("finished_at")),
+            wall_s=row.get("wall_s"),
+            results=dict(json.loads(row.get("results_json") or "{}")),
+            metrics=metrics,
+            raw_dir=row.get("raw_dir") or "",
+            baseline_id=row.get("baseline_id") or "",
+            deltas=dict(json.loads(row.get("deltas_json") or "{}")),
+            notes=row.get("notes") or "",
+        )
+
     # ---- 导出 ----
     def export(self, out_dir: str | Path, fmt: str = "parquet") -> list[Path]:
         """把核心表导出成文件，便于长期归档或丢进 BI 工具。"""
         out = Path(out_dir)
         out.mkdir(parents=True, exist_ok=True)
-        tables = ("runs", "metrics", "request_samples", "scenarios", "run_environments", "v_run_metrics")
+        tables = (
+            "runs", "metrics", "request_samples", "scenarios", "run_environments",
+            "quality_evals", "quality_metrics", "v_run_metrics", "v_quality_metrics",
+        )
         written: list[Path] = []
         fmt = fmt.lower()
         if fmt not in ("parquet", "csv", "json"):
             raise ValueError(f"不支持的导出格式: {fmt}（可选 parquet/csv/json）")
 
         if fmt == "json":
-            for table in ("runs", "metrics", "request_samples", "scenarios"):
+            for table in ("runs", "metrics", "request_samples", "scenarios",
+                          "quality_evals", "quality_metrics"):
                 target = out / f"{table}.json"
                 target.write_text(
                     json.dumps(self.query(f"SELECT * FROM {table}"), ensure_ascii=False, indent=2, default=str),

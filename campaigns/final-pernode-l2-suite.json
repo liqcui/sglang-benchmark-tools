@@ -1,0 +1,23 @@
+{
+  "name": "final-pernode-l2-suite",
+  "title": "终版 L2 套件 — pernode + HiCache L2 on（prefill PD_ENABLE_HICACHE=1；对照=主套件内同键 L2-off 基线）",
+  "exec": "kubectl",
+  "timeout": "45m",
+  "auto_retry": 2,
+  "gpu_reset": true,
+  "sides": {
+    "finl2": {
+      "label": "final-2026-10-14-pernode-l2",
+      "env_file": "envs/dsv4-0731-pernode-c48-l2.json"
+    }
+  },
+  "scenarios": [
+    "mini-l2-32c",
+    "mini-l2-64c",
+    "mini-l2-128c",
+    "hicache-multiturn-20x10",
+    "hicache-multiturn-80x10",
+    "hicache-multiturn-80x10-r16"
+  ],
+  "output_dir": "reports/final-suite"
+}

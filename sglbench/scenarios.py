@@ -160,18 +160,20 @@ def _catalog() -> dict[str, Scenario]:
             sla=_sla(max_p99_ttft_ms=5000.0, max_p99_tpot_ms=60.0, min_output_token_throughput_tok_s=50.0),
             tags=["baseline", "gate"],
         ),
-        # ================ ② 超长上下文单并发（200K 场景基线） ================
+        # ================ ② 长上下文单并发（65K 基线；模型窗口 400K） ================
         _glm(
-            "single-longctx", "单并发·超长上下文（GLM，约 200K）", "long-context",
-            "max-concurrency=1，输入 65536 / 输出 8192，校验长上下文 Prefill 与 KV 传输。",
+            "single-longctx", "单并发·长上下文 65K（GLM）", "long-context",
+            "max-concurrency=1，输入 65536 / 输出 8192，校验长上下文 Prefill 与 KV 传输。"
+            "（注：历史名曾写「约 200K」，实际输入为 65K；真 128K/200K 档见 prod-longctx-*。）",
             num_prompts=20, max_concurrency=1, random_input=65536, random_output=8192,
             request_rate=0.5,
             sla=_sla(max_p99_ttft_ms=6000.0, max_p99_tpot_ms=30.0),
             tags=["long-context"],
         ),
         _deepseek(
-            "single-longctx-deepseek", "单并发·超长上下文（DeepSeek，约 200K）", "long-context",
-            "65536/8192 单并发基线；SLA 按 65K 输入放大。",
+            "single-longctx-deepseek", "单并发·长上下文 65K（DeepSeek）", "long-context",
+            "65536/8192 单并发基线；SLA 按 65K 输入放大。"
+            "（注：历史名曾写「约 200K」，实际输入为 65K；真 128K/200K 档见 prod-longctx-*。）",
             num_prompts=20, max_concurrency=1, random_input=65536, random_output=8192,
             request_rate=0.5,
             sla=_sla(max_p99_ttft_ms=60000.0, max_p99_tpot_ms=100.0),
@@ -465,6 +467,84 @@ def _catalog() -> dict[str, Scenario]:
             tags=["hicache", "l3", "multiturn", "mooncake", "populated"],
         )
     )
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # 生产画像压测套件（2026-10-12）—— 面向真实业务画像，定位「不崩溃 → 最优
+    #   TTFT/TPOT → 最大 tok/s」的生产操作点。
+    #
+    # 设计要点：
+    #   1) 画像：按大模型日常调用分型 —— 在线对话(chat) / RAG 知识问答(rag) /
+    #      代码生成(code) / 通用文本(standard) / 长上下文(longctx)。
+    #   2) 水位：每个画像覆盖低 / 中 / 高并发（16 / 64 / 128；通用档再补 32/96/160/256）。
+    #   3) 速率：**由容量墙反推，不取固定高值**。合理速率 = 容量点 × 系数，
+    #        容量点 rate = min(C_in/L_in, C_out/L_out)：
+    #          C_in  ≈ 8.2K in-tok/s（prefill 墙，本集群实测）
+    #          C_out ≈ 2.0K（PP1）/ 3.35K（per-node）out-tok/s（decode 墙）
+    #        → 稳态/真实时延用 ×0.7~1.0；并发档（找边界）用 ×1.0~2.5；
+    #          单流档 << 1× 容量（避免排队污染时延）。系数再高无信息增益，
+    #          只会让队列无限积压 → TTFT 沦为排队、retract/崩溃风险上升。
+    #        各画像容量点（本集群）：chat 512 ≈6.5、code 1K/2K ≈1.6、
+    #        standard 4K/2K ≈2.0、rag 8K/256 ≈1.0、longctx 65K ≈0.12 req/s。
+    #        均为初标定值，实测后可用 `--set request_rate=X` 精修。
+    #   4) 曲线：同画像所有档共享 in/out → `sglbench sweep --family production` 自动
+    #      按画像出「吞吐-时延 vs 并发」曲线，标注拐点与安全水位。
+    #   5) 边界：prod-boundary-* 为已知崩溃探针（expected-failure），用于钉死安全墙。
+    #
+    # 运行示例：
+    #   sglbench scenarios --scenario-file <自定>            # 看目录
+    #   sglbench run --scenario prod-standard-c64 --exec docker --label prod-2026-10
+    #   sglbench campaign run campaigns/production-suite.json --side prod
+    #   sglbench sweep --family production
+    # ═══════════════════════════════════════════════════════════════════════════
+    # (key, 名称, 并发, 速率, 输入, 输出, 请求数, p99TTFT上限ms, p99TPOT上限ms, tags)
+    _prod: list[tuple] = [
+        # ① 单流能力基线（每步解码速度 & 首 token 能力，无队列干扰）
+        ("prod-chat-c1",     "单流·在线对话 512/512（能力基线）",     1, 1.0,    512,  512, 100,  3000,  40, ["capability", "chat"]),
+        ("prod-rag-c1",      "单流·RAG 知识问答 8K/256（能力基线）",   1, 0.5,   8192,  256,  50,  8000,  20, ["capability", "rag"]),
+        ("prod-code-c1",     "单流·代码生成 1K/2K（能力基线）",        1, 1.0,   1024, 2048,  50,  3000,  30, ["capability", "code"]),
+        # ② 通用文本 4K/2K 并发梯度（低→高；主矩阵，sweep 出曲线）
+        ("prod-standard-c16",  "通用文本 16 并发（低）",       16,  2.0, 4096, 2048, 200,  6000,  70, ["standard", "low"]),
+        ("prod-standard-c32",  "通用文本 32 并发（低-中）",    32,  2.5, 4096, 2048, 200,  8000,  70, ["standard", "low"]),
+        ("prod-standard-c64",  "通用文本 64 并发（中）",       64,  3.0, 4096, 2048, 300, 12000,  90, ["standard", "mid"]),
+        ("prod-standard-c96",  "通用文本 96 并发（中-高）",    96,  3.5, 4096, 2048, 300, 20000, 120, ["standard", "mid"]),
+        ("prod-standard-c128", "通用文本 128 并发（高）",     128,  4.0, 4096, 2048, 300, 30000, 150, ["standard", "high"]),
+        ("prod-standard-c160", "通用文本 160 并发（高-极限）", 160,  5.0, 4096, 2048, 400, 45000, 200, ["standard", "high", "stress"]),
+        # ③ 在线对话 512/512 并发梯度（交互式，TTFT 敏感）
+        ("prod-chat-c16",    "在线对话 16 并发（低）",     16,  6.0,  512, 512, 400,  3000,  40, ["chat", "low"]),
+        ("prod-chat-c64",    "在线对话 64 并发（中）",     64,  9.0,  512, 512, 600,  5000,  50, ["chat", "mid"]),
+        ("prod-chat-c128",   "在线对话 128 并发（高）",   128, 13.0,  512, 512, 800,  8000,  60, ["chat", "high"]),
+        # ④ RAG 8K/256 并发梯度（prefill 密集，直接压 prefill 组与 KV 传输）
+        ("prod-rag-c16",     "RAG 知识问答 16 并发（低）",  16, 1.0, 8192, 256, 200,  8000,  40, ["rag", "low"]),
+        ("prod-rag-c64",     "RAG 知识问答 64 并发（中）",  64, 1.5, 8192, 256, 300, 15000,  60, ["rag", "mid"]),
+        ("prod-rag-c128",    "RAG 知识问答 128 并发（高）", 128, 2.0, 8192, 256, 400, 30000,  80, ["rag", "high"]),
+        # ⑤ 代码生成 1K/2K 并发梯度（decode 密集，压 decode 组）
+        ("prod-code-c16",    "代码生成 16 并发（低）",      16, 1.6, 1024, 2048, 200,  5000,  60, ["code", "low"]),
+        ("prod-code-c64",    "代码生成 64 并发（中）",      64, 2.4, 1024, 2048, 300, 10000,  80, ["code", "mid"]),
+        ("prod-code-c128",   "代码生成 128 并发（高）",    128, 3.2, 1024, 2048, 400, 20000, 120, ["code", "high"]),
+        # ⑥ 长上下文档（真超长 128K/200K + 65K 多并发安全档）
+        ("prod-longctx-65k-c1",  "长上下文 65K 单流",       1, 0.25,  65536, 8192, 20,  60000, 100, ["long-context", "65k"]),
+        ("prod-longctx-65k-c8",  "长上下文 65K × 8 并发",   8, 0.25,  65536, 8192, 40,  90000, 120, ["long-context", "65k"]),
+        ("prod-longctx-128k-c1", "长上下文 128K 单流",      1, 0.15, 131072, 8192, 10, 120000, 120, ["long-context", "128k"]),
+        ("prod-longctx-200k-c1", "长上下文 200K 单流",      1, 0.1,  196608, 8192,  8, 180000, 150, ["long-context", "200k"]),
+        # ⑦ 容量点稳态（≈1× 容量 → 真实服务时延，用户视角基线）
+        ("prod-steady-standard-r2", "通用文本·容量点稳态（rate=2 · c64）", 64, 2.0, 4096, 2048, 300, 8000, 70, ["steady", "capacity-point"]),
+        # ⑧ 边界探针（预期失败：钉死安全墙；勿用于生产门禁）
+        ("prod-boundary-standard-c256", "通用文本 256 并发·边界探针", 256,  6.0, 4096, 2048, 400,  60000, 300, ["boundary", "known-failure"]),
+        ("prod-boundary-longctx-c32",  "长上下文 65K×32·边界探针",     32,  0.5, 65536, 8192, 100, 180000, 300, ["boundary", "known-failure", "long-context"]),
+    ]
+    for key, name, conc, rate, inp, out, n, ttft, tpot, tags in _prod:
+        items.append(
+            _deepseek(
+                key, name, "production",
+                f"生产画像套件：{name}。并发 {conc} / 速率 {rate}/s / {inp}→{out} / {n} 请求。"
+                f"速率与并发为初标定（容量墙 ≈8.2K in-tok/s），可用 --set request_rate=… / "
+                f"--set max_concurrency=… 校准；同画像档可用 `sglbench sweep --family production` 出曲线。",
+                num_prompts=n, max_concurrency=conc, random_input=inp, random_output=out,
+                request_rate=rate,
+                sla=_sla(max_p99_ttft_ms=float(ttft), max_p99_tpot_ms=float(tpot)),
+                tags=["production", *tags],
+            )
+        )
     return {s.key: s for s in items}
 
 
@@ -474,6 +554,7 @@ FAMILIES: dict[str, str] = {
     "single": "单并发基线",
     "concurrency": "多并发梯度承压",
     "long-context": "超长上下文",
+    "production": "生产画像压测套件（画像×低中高并发×容量点/边界）",
     "single-stage": "单阶段独立压测",
     "hicache": "HiCache 专项（L2 稳定边界 / L2+L3 多轮对话）",
     "custom": "自定义",

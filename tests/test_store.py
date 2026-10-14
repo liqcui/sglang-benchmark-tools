@@ -52,7 +52,8 @@ class TestSchema(unittest.TestCase):
         with temp_home() as paths, Store(paths.db) as store:
             self.assertEqual(store.schema_version(), SCHEMA_VERSION)
             tables = {r["table_name"] for r in store.query("SELECT table_name FROM information_schema.tables")}
-            for expected in ("runs", "metrics", "request_samples", "scenarios", "preflight_checks"):
+            for expected in ("runs", "metrics", "request_samples", "scenarios", "preflight_checks",
+                             "quality_evals", "quality_metrics"):
                 self.assertIn(expected, tables)
 
     def test_missing_file_read_only_raises(self) -> None:
@@ -232,7 +233,7 @@ class TestForensics(unittest.TestCase):
             )
             self.assertEqual(store.get_forensics("run-1")["trigger"], "manual")
             self.assertEqual(store.schema_version(), SCHEMA_VERSION)
-            self.assertEqual(SCHEMA_VERSION, 2)
+            self.assertEqual(SCHEMA_VERSION, 3)
 
 
 class TestExport(unittest.TestCase):
@@ -241,7 +242,8 @@ class TestExport(unittest.TestCase):
             store.upsert_scenarios(BUILTIN_SCENARIOS.values())
             store.save_run(make_run("r1"))
             parquet = store.export(paths.exports_dir / "pq", fmt="parquet")
-            self.assertEqual(len(parquet), 6)  # runs/metrics/request_samples/scenarios/run_environments/v_run_metrics
+            # runs/metrics/request_samples/scenarios/run_environments/quality_evals/quality_metrics/v_run_metrics/v_quality_metrics
+            self.assertEqual(len(parquet), 9)
             self.assertTrue(all(p.exists() and p.stat().st_size > 0 for p in parquet))
             csv = store.export(paths.exports_dir / "csv", fmt="csv")
             self.assertTrue(any(p.suffix == ".csv" for p in csv))

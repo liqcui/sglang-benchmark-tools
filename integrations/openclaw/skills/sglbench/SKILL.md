@@ -67,8 +67,8 @@ python3 -m sglbench status        # JSON: router/leaders 连通 + DB 概况（�
 |---|---|---|---|
 | `single-standard` | 单并发·常规文本（GLM） | 1 | 1.0 |
 | `single-deepseek-standard` | 单并发·常规文本（DeepSeek-V4-Flash） | 1 | 1.0 |
-| `single-longctx` | 单并发·超长上下文（GLM，约 200K） | 1 | 0.5 |
-| `single-longctx-deepseek` | 单并发·超长上下文（DeepSeek，约 200K） | 1 | 0.5 |
+| `single-longctx` | 单并发·长上下文 65K（GLM） | 1 | 0.5 |
+| `single-longctx-deepseek` | 单并发·长上下文 65K（DeepSeek） | 1 | 0.5 |
 | `conc-32-standard` | 32 并发·常规文本（GLM，Decode 满配） | 32 | 4.0 |
 | `conc-32-deepseek` | 32 并发·常规文本（DeepSeek，Decode 满配） | 32 | 4.0 |
 | `conc-64-standard` | 64 并发·常规文本（GLM，Prefill 满配） | 64 | 6.0 |
@@ -94,6 +94,31 @@ python3 -m sglbench status        # JSON: router/leaders 连通 + DB 概况（�
 | `hicache-l3-multiturn-20x10` | HiCache L3 多轮对话 20 客户端×10 轮（Mooncake） | 20 | 2.0 |
 | `hicache-l3-multiturn-80x10` | HiCache L3 多轮对话 80 客户端×10 轮（Mooncake） | 80 | 1.0 |
 | `hicache-l3-populated-20x10` | HiCache L3 预填充多轮对话 20 客户端×10 轮（Populated） | 20 | 2.0 |
+| `prod-chat-c1` | 单流·在线对话 512/512（能力基线） | 1 | 1.0 |
+| `prod-rag-c1` | 单流·RAG 知识问答 8K/256（能力基线） | 1 | 0.5 |
+| `prod-code-c1` | 单流·代码生成 1K/2K（能力基线） | 1 | 1.0 |
+| `prod-standard-c16` | 通用文本 16 并发（低） | 16 | 2.0 |
+| `prod-standard-c32` | 通用文本 32 并发（低-中） | 32 | 2.5 |
+| `prod-standard-c64` | 通用文本 64 并发（中） | 64 | 3.0 |
+| `prod-standard-c96` | 通用文本 96 并发（中-高） | 96 | 3.5 |
+| `prod-standard-c128` | 通用文本 128 并发（高） | 128 | 4.0 |
+| `prod-standard-c160` | 通用文本 160 并发（高-极限） | 160 | 5.0 |
+| `prod-chat-c16` | 在线对话 16 并发（低） | 16 | 6.0 |
+| `prod-chat-c64` | 在线对话 64 并发（中） | 64 | 9.0 |
+| `prod-chat-c128` | 在线对话 128 并发（高） | 128 | 13.0 |
+| `prod-rag-c16` | RAG 知识问答 16 并发（低） | 16 | 1.0 |
+| `prod-rag-c64` | RAG 知识问答 64 并发（中） | 64 | 1.5 |
+| `prod-rag-c128` | RAG 知识问答 128 并发（高） | 128 | 2.0 |
+| `prod-code-c16` | 代码生成 16 并发（低） | 16 | 1.6 |
+| `prod-code-c64` | 代码生成 64 并发（中） | 64 | 2.4 |
+| `prod-code-c128` | 代码生成 128 并发（高） | 128 | 3.2 |
+| `prod-longctx-65k-c1` | 长上下文 65K 单流 | 1 | 0.25 |
+| `prod-longctx-65k-c8` | 长上下文 65K × 8 并发 | 8 | 0.25 |
+| `prod-longctx-128k-c1` | 长上下文 128K 单流 | 1 | 0.15 |
+| `prod-longctx-200k-c1` | 长上下文 200K 单流 | 1 | 0.1 |
+| `prod-steady-standard-r2` | 通用文本·容量点稳态（rate=2 · c64） | 64 | 2.0 |
+| `prod-boundary-standard-c256` | 通用文本 256 并发·边界探针 | 256 | 6.0 |
+| `prod-boundary-longctx-c32` | 长上下文 65K×32·边界探针 | 32 | 0.5 |
 
 ## 命令参考（自动生成 · 来源 cli.py）
 
@@ -107,7 +132,11 @@ python3 -m sglbench status        # JSON: router/leaders 连通 + DB 概况（�
 
 ### `sglbench run`
 执行场景压测
-参数: `--home <值>` · `--db <值>` · `--scenario-file <值>` · `--quiet` · `--scenario <值>` · `--label <值>` · `--notes <值>` · `--tag <值>` · `--run-id <值>` · `--repeat <值>` · `--auto-retry <值>` · `--gpu-reset` · `--no-forensics` · `--retry-wait <值>` · `--set <值>` · `--python <值>` · `--module <值>` · `--exec <值>` · `--detail-flag <值>` · `--no-dump-requests` · `--timeout <值>` · `--dry-run` · `--json` · `--no-store` · `--fail-on-bad` · `--verbose` · `--env-file <值>`
+参数: `--home <值>` · `--db <值>` · `--scenario-file <值>` · `--quiet` · `--scenario <值>` · `--label <值>` · `--notes <值>` · `--tag <值>` · `--run-id <值>` · `--repeat <值>` · `--auto-retry <值>` · `--gpu-reset` · `--no-forensics` · `--retry-wait <值>` · `--eval-after <值>` · `--eval-file <值>` · `--eval-timeout <值>` · `--set <值>` · `--python <值>` · `--module <值>` · `--exec <值>` · `--detail-flag <值>` · `--no-dump-requests` · `--timeout <值>` · `--dry-run` · `--json` · `--no-store` · `--fail-on-bad` · `--verbose` · `--env-file <值>`
+
+### `sglbench eval`
+精度评测（lm-eval 子集）—— 检测量化/升级是否引入精度退化
+参数: `--home <值>` · `--db <值>` · `--scenario-file <值>` · `--quiet` · `--scenario <值>` · `--subset <值>` · `--tasks <值>` · `--num-fewshot <值>` · `--limit-n <值>` · `--no-chat-template` · `--endpoint-kind <值>` · `--eval-file <值>` · `--baseline <值>` · `--no-auto-baseline` · `--run-id <值>` · `--eval-id <值>` · `--label <值>` · `--notes <值>` · `--set <值>` · `--python <值>` · `--extra-arg <值>` · `--timeout-s <值>` · `--out-dir <值>` · `--scenario-filter <值>` · `--limit <值>` · `--dry-run` · `--json` · `--no-store`
 
 ### `sglbench multiturn`
 HiCache 多轮对话基准（N 客户端 × R 轮，逐轮 TTFT/cache-hit）
@@ -126,7 +155,7 @@ HiCache 多轮对话基准（N 客户端 × R 轮，逐轮 TTFT/cache-hit）
 
 #### `sglbench campaign run`
 执行战役一侧（当前部署下全部场景, 带自愈）
-参数: `--home <值>` · `--db <值>` · `--scenario-file <值>` · `--quiet` · `--side <值>` · `--only <值>` · `--force` · `--dry-run` · `--report-dir <值>` · `--json`
+参数: `--home <值>` · `--db <值>` · `--scenario-file <值>` · `--quiet` · `--side <值>` · `--only <值>` · `--force` · `--dry-run` · `--report-dir <值>` · `--eval-after <值>` · `--json`
 
 ### `sglbench recover`
 GPU 热复位+pod 重建（ssh mx-smi; --dry-run 先看计划）

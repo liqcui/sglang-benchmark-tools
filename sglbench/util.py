@@ -74,6 +74,7 @@ class Paths:
 
     ``<home>/bench.duckdb``  分析库
     ``<home>/runs/<run_id>/`` 不可变 run 工件
+    ``<home>/evals/<eval_id>/`` 不可变精度评测工件
     """
 
     home: Path
@@ -87,6 +88,10 @@ class Paths:
         return self.home / "runs"
 
     @property
+    def evals_dir(self) -> Path:
+        return self.home / "evals"
+
+    @property
     def reports_dir(self) -> Path:
         return self.home / "reports"
 
@@ -97,8 +102,11 @@ class Paths:
     def run_dir(self, run_id: str) -> Path:
         return self.runs_dir / run_id
 
+    def eval_dir(self, eval_id: str) -> Path:
+        return self.evals_dir / eval_id
+
     def ensure(self) -> "Paths":
-        for p in (self.home, self.runs_dir, self.reports_dir, self.exports_dir):
+        for p in (self.home, self.runs_dir, self.evals_dir, self.reports_dir, self.exports_dir):
             p.mkdir(parents=True, exist_ok=True)
         return self
 

@@ -437,6 +437,99 @@ class RunSummary:
         return default if v is None else v
 
 
+# --------------------------------------------------------------------------- #
+# 精度 / 质量评测（lm-eval 子集）
+# --------------------------------------------------------------------------- #
+
+
+@dataclass
+class QualityMetric:
+    """一条评测指标（某任务某指标的得分）。"""
+
+    metric_key: str  # 形如 "gsm8k:acc,none"
+    value: float
+    task: str = ""
+    metric: str = ""
+    higher_is_better: bool = True
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class QualityEval:
+    """一次精度评测（通常是 lm-eval 的若干子任务）的完整记录。
+
+    与 ``RunRecord`` 平行：性能 run 记录「多快」，QualityEval 记录「多准」。
+    二者通过 ``run_id`` 可选关联，从而支持「同一配置下性能↑ 精度是否↓」的联合判读。
+    """
+
+    eval_id: str
+    scenario_key: str = ""
+    label: str = ""
+    subset: str = ""
+    status: str = "ok"  # ok / failed / partial / skipped
+    run_id: str = ""  # 关联的性能 run（可空）
+    endpoint: str = ""
+    model: str = ""
+    tokenizer: str = ""
+    lm_eval_cmd: str = ""
+    tasks: list[str] = field(default_factory=list)
+    num_fewshot: int | None = None
+    limit_n: float | None = None
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+    wall_s: float | None = None
+    results: dict[str, Any] = field(default_factory=dict)  # lm-eval 原始 results 段
+    metrics: list[QualityMetric] = field(default_factory=list)
+    raw_dir: str = ""
+    baseline_id: str = ""
+    deltas: dict[str, float] = field(default_factory=dict)  # metric_key -> (本 - 基线)
+    notes: str = ""
+
+    @property
+    def duration_s(self) -> float | None:
+        if self.wall_s is not None:
+            return self.wall_s
+        if self.started_at and self.finished_at:
+            return (self.finished_at - self.started_at).total_seconds()
+        return None
+
+    def metric(self, key: str) -> float | None:
+        for m in self.metrics:
+            if m.metric_key == key:
+                return m.value
+        return None
+
+    def to_dict(self) -> dict[str, Any]:
+        from .util import iso
+
+        return {
+            "eval_id": self.eval_id,
+            "run_id": self.run_id,
+            "scenario_key": self.scenario_key,
+            "label": self.label,
+            "subset": self.subset,
+            "status": self.status,
+            "endpoint": self.endpoint,
+            "model": self.model,
+            "tokenizer": self.tokenizer,
+            "lm_eval_cmd": self.lm_eval_cmd,
+            "tasks": list(self.tasks),
+            "num_fewshot": self.num_fewshot,
+            "limit_n": self.limit_n,
+            "started_at": iso(self.started_at),
+            "finished_at": iso(self.finished_at),
+            "wall_s": self.wall_s,
+            "results": dict(self.results),
+            "metrics": [m.to_dict() for m in self.metrics],
+            "raw_dir": self.raw_dir,
+            "baseline_id": self.baseline_id,
+            "deltas": dict(self.deltas),
+            "notes": self.notes,
+        }
+
+
 def collect_samples(samples: Iterable[Sample], field_name: str) -> list[float]:
     """取某个字段的有效数值序列（跳过 None/NaN），用于分布统计。"""
     out: list[float] = []

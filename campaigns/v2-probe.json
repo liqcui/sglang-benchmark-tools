@@ -1,0 +1,20 @@
+{
+  "name": "v2-probe",
+  "title": "v2 边界探针·层C：known-failure，只用于钉死安全墙（勿入门禁）",
+  "exec": "docker",
+  "timeout": "3h",
+  "auto_retry": 3,
+  "gpu_reset": true,
+  "sides": {
+    "v2": {
+      "label": "v2-probe-2026-10",
+      "env_file": "envs/dsv4-0731-pernode-c48.json"
+    }
+  },
+  "scenarios": [
+    { "key": "v2-boundary-longctx-65k-c32", "repeats": 2 },
+    { "key": "v2-boundary-standard-c256", "repeats": 2 },
+    { "key": "v2-boundary-standard-c192-r8", "repeats": 2 }
+  ],
+  "output_dir": "reports/v2-probe"
+}
