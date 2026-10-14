@@ -221,5 +221,32 @@ troubleshooting §2）**；修复重测 4 轮（fixed1-4）。
 
 - 本报告（安全边界终版）+ `TROUBLESHOOTING-2026-10-14-*.md`（四类框架+逐次首死）
 - 套件：`campaigns/final-suite.json`（42×双形态）+ `final-pernode-l2-suite.json`
-- 数据：`data/runs/` 全量 + `bench.duckdb`（MinIO 备份 `cubestack-full-offline-files/sglbench-backup-20261014/`）
-- 部署资产：llm-d 五形态目录（pernode/pp1x/pp4full/nospark/f4-终止）+ 修复 yaml（Phase 1/5）
+- 数据：`data/runs/` 全量 + `bench.duckdb`（MinIO 备份 `cubestack-full-offline-files/sglbench-backup-20261014/`，
+  含完整仓库目录 `full-repo/`）
+- 部署资产：llm-d 六形态目录（**pernode-best=★最优解冻结** / pernode / pp1x / pp4full / nospark / f4-终止）
+  + 修复 yaml（Phase 1/5）
+
+### 8.6 最后一波（10-14 深夜 F1-F3）
+
+**F1 Router 负载均衡策略（pernode，实测判决）**：**默认策略（prefill/decode 皆 `cache_aware`，不设
+`--policy` 旗标）胜出**——cache_aware 自带 abs±64/rel 1.5× 负载均衡阈值，是"前缀亲和+均衡"混合体：
+
+| 格（同集群受控对照） | 默认双 cache_aware | prefill=cache_aware + decode=power_of_two |
+|---|---|---|
+| steady r2 | **TTFT 964ms / TPOT 9.1ms** | 2000ms / 11.1ms |
+| std-c128 | **1244ms / 12.3ms** | 1300ms / 19.3ms |
+| std-c160 | **1520ms / 17.4ms** | 1848ms / 16.5ms |
+
+→ 3/3 格默认胜（label `routerpol-p2-*`）；sglang-router 0.3.2 的 `--prefill-policy/--decode-policy`
+高级旗标可用但本场景无收益。**最优解结论：pernode 不设 router 策略。**
+
+**F2 官方默认参数 × context 200000（对标开箱性能）**：厂商默认（撤全部对齐项；ctx 200000）——
+**单流场景跑到第 38 个请求即崩**（partial；TTFT 1.69s / TPOT 9.68ms，性能本身良好）→ 后续格全连带
+failed（decode 重建窗口）。**结论：厂商开箱默认配置在负载下不稳定；我们对齐的 mem-frac/cap/graph-bs
+等参数就是本平台生产级稳定性的来源**（对照：对齐配置全场景 42/42 + c128 300/300）。label
+`pp4default-ctx200k-*`，env 快照 `envs/dsv4-0731-pp4-default-ctx200k.json`。
+
+**F3 最优解终态与边界内验证**：恢复 **pernode-best（★冻结最优解目录）** 为终态部署（8/8、router
+4+4、probe ok）→ 边界内终验证 **c160@r5 = ok（400/400，TTFT 5.78s / TPOT 16.46ms）✓**
+（label `best-final-r5-c160`，run `prod-standard-c160-…T151821Z-059a`）——**优化方案在安全边界边缘
+零崩溃收官**。
