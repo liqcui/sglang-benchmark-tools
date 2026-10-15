@@ -85,6 +85,10 @@
 ## 附录 A：DSPARK 投机解码启用情况（权威配置，2026-10-15 核验）
 
 **结论：除 nospark 对照变体外，所有测试形态默认开启 DSPARK**（block 6）；三拓扑同构同参 → 对比口径公平。
+**跨节点实证**：官方 pp4full 形态 decode 运行期 server_args 抓取 = `nnodes=4, tp_size=8, dp_size=4,
+enable_dp_attention=True, speculative_algorithm='DSPARK', dspark_block_size=6` → **DSPARK 跨节点正常
+工作**（限制非"单节点"而是：① `ep_size` 必须=1（>1 图捕获必崩）② `tp≤8`（o_groups=8 模型硬约束，
+f4 终止之因）。
 
 | 形态 | DSPARK | 配置机制 | 备注 |
 |---|---|---|---|
@@ -120,3 +124,27 @@
   **是"性能最优"的选择，不是 DSPARK 的边界**
 - 模型硬约束另有一条：**tp ≤ 8**（attention 仅 8 个 output groups，`o_groups % tp == 0`；tp32 → 
   `n_local_groups=0` 图捕获崩）——所以"单大引擎吞多节点"（tp32/tp64）任何形态都不可行
+
+## 附录 B：Gap 补测实测结果（2026-10-15）
+
+### B1 G1 完成 ✅ — 3P5D 长上下文补齐（全 ok，零崩）
+| 格 | TTFT | TPOT | 对照（pernode 4+4） |
+|---|---|---|---|
+| 65k-c8 | 15.40s | **6.08ms** | 9.4ms（pernode 记录） |
+| 128k-c1 | 25.35s | **5.87ms** | — |
+| 200k-c1 | 46.03s | **5.71ms** | — |
+→ 3P5D 长上下文 TPOT 全面 <6.1ms（decode 5 引擎收益），TTFT 随长度线性排队（prefill 3 台短板），
+全程零崩。label `gap-3p5d-lc*`。
+
+### B2 G2 完成 ✅ — prefill cap 64→96（`pernode-3p5d-p96`）
+| 格 | cap64 基线 | cap96 有效值（×2 中位） | 判定 |
+|---|---|---|---|
+| c128@r4 | 2.17s / 11.45ms | **1.74s（-20%） / 11.0ms** | ✅ 改善 |
+| c160@r5 | 2.42s / 12.10ms | 2.50s（+3%，噪声内） / 12.5ms | 中性 |
+- ⚠ 测量学：首对 run（12:29/12:31，同 label）为**滚动后冷启动伪影**（TTFT 5845/3181ms），
+  按铁律**丢弃**；另发现**同名 label 双 run**（另一执行已提前跑过 G2 协议）——分析以 12:54-13:04
+  三对数据为准。label `g2-p96-*`。
+- **结论**：prefill cap 96 = **c128 档明确改善候选**（-20% TTFT，优于"稳定优先"阈值），c160 无损。
+
+### B3 G3 状态（官方默认参数对照）
+- `pernode-3p5d-default`（撤全部对齐 env）→ 已 apply（gen=19=observed）→ LWS 滚动中 → 进行时。
