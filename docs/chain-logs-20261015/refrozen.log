@@ -1,0 +1,68 @@
+=== [20:09:19] refrozen: 回滚冻结档（16384/mr48）+ 同小时锚点 ===
+[render] 10 文件 -> /home/supperadm/llm-d/guides/pd-disaggregation/modelserver/gpu/sglang/metax/deepseek-v4-flash-0731-pernode-3p5d/_rendered/lws（10 处替换）
+[next]  kubectl apply -k /home/supperadm/llm-d/guides/pd-disaggregation/modelserver/gpu/sglang/metax/deepseek-v4-flash-0731-pernode-3p5d/_rendered/lws/
+serviceaccount/mx-sglang-pd-lws unchanged
+role.rbac.authorization.k8s.io/mx-sglang-pd-pod-reader unchanged
+rolebinding.rbac.authorization.k8s.io/mx-sglang-pd-pod-reader unchanged
+configmap/pd-launcher-dsv4-0731 unchanged
+service/decode-dsv4-0731-headless unchanged
+service/prefill-dsv4-0731-headless unchanged
+deployment.apps/deepseek-v4-0731-router unchanged
+leaderworkerset.leaderworkerset.x-k8s.io/decode-dsv4-0731 configured
+leaderworkerset.leaderworkerset.x-k8s.io/prefill-dsv4-0731 unchanged
+[20:09:20] decode 5r/u prefill 3r/3u
+[20:10:05] decode 4r/1u prefill 3r/3u
+[20:10:51] decode 4r/1u prefill 3r/3u
+[20:11:36] decode 4r/1u prefill 3r/3u
+[20:12:21] decode 4r/1u prefill 3r/3u
+[20:13:06] decode 4r/1u prefill 3r/3u
+[20:13:52] decode 5r/1u prefill 3r/3u
+[20:14:37] decode 4r/2u prefill 3r/3u
+[20:15:22] decode 4r/2u prefill 3r/3u
+[20:16:07] decode 4r/2u prefill 3r/3u
+[20:16:53] decode 4r/2u prefill 3r/3u
+[20:17:38] decode 4r/2u prefill 3r/3u
+[20:18:23] decode 4r/3u prefill 3r/3u
+[20:19:08] decode 4r/3u prefill 3r/3u
+[20:19:54] decode 4r/3u prefill 3r/3u
+[20:20:39] decode 4r/3u prefill 3r/3u
+[20:21:24] decode 4r/3u prefill 3r/3u
+[20:22:09] decode 4r/3u prefill 3r/3u
+[20:22:55] decode 4r/4u prefill 3r/3u
+[20:23:40] decode 4r/4u prefill 3r/3u
+[20:24:25] decode 4r/4u prefill 3r/3u
+[20:25:10] decode 2r/4u prefill 2r/3u
+[20:25:56] decode 1r/4u prefill r/3u
+[20:26:41] decode 1r/4u prefill r/3u
+[20:27:26] decode 1r/4u prefill r/3u
+[20:28:11] decode 1r/4u prefill r/3u
+[20:28:57] decode 1r/4u prefill r/3u
+[20:29:42] decode 1r/4u prefill r/3u
+[20:30:27] decode 1r/4u prefill r/3u
+[20:31:12] decode 1r/4u prefill r/3u
+[20:31:58] decode 1r/4u prefill r/3u
+[20:32:43] decode 1r/4u prefill r/3u
+[20:33:28] decode 1r/4u prefill r/3u
+[20:34:13] decode 1r/4u prefill r/3u
+[20:34:59] decode 1r/4u prefill r/3u
+[20:35:44] decode 1r/4u prefill r/3u
+[20:36:29] decode 1r/4u prefill r/3u
+[20:37:14] decode 1r/4u prefill r/3u
+[20:38:00] decode 1r/4u prefill r/3u
+[20:38:45] decode 1r/4u prefill r/3u
+[20:39:30] decode 1r/4u prefill r/3u
+[20:40:15] decode 1r/4u prefill r/3u
+[20:41:01] decode 1r/4u prefill r/3u
+[20:41:46] decode 1r/4u prefill r/3u
+[20:42:31] decode 1r/4u prefill r/3u
+[20:43:17] decode 1r/4u prefill r/3u
+[20:44:02] decode 1r/4u prefill r/3u
+[20:44:47] decode 1r/4u prefill r/3u
+[20:45:32] decode 1r/4u prefill r/3u
+[20:46:18] decode 1r/4u prefill r/3u
+[20:47:03] decode 1r/4u prefill r/3u
+[20:47:48] decode 1r/4u prefill r/3u
+[20:48:33] decode 1r/4u prefill r/3u
+[20:49:19] decode 1r/4u prefill r/3u
+[20:50:04] decode 1r/4u prefill r/3u
+=== 收敛超时 ===

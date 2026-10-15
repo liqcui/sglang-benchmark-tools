@@ -1,0 +1,13 @@
+=== [19:54:42] cap56 rep2: c64@r3 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T115442Z-b58e status=ok 成功请求=300 MeanTTFT=1.52 s MeanTPOT=9.76 ms
+=== [19:57:30] cap56 rep2: c128@r4 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T115731Z-0979 status=ok 成功请求=300 MeanTTFT=1.85 s MeanTPOT=11.45 ms
+=== [20:00:01] cap56 rep2: c160@r5 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T120001Z-5c49 status=ok 成功请求=300 MeanTTFT=2.77 s MeanTPOT=11.96 ms
+=== [20:02:10] cap56 rep2: c192@r5 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T120210Z-a56e status=ok 成功请求=300 MeanTTFT=3.01 s MeanTPOT=13.14 ms
+=== [20:04:25] cap56 rep2 DONE ===

@@ -1,0 +1,10 @@
+=== [11:28:54] G1 65k-c8 ===
+[1/1] 执行 prod-longctx-65k-c8 …
+    → run_id=prod-longctx-65k-c8-20261015T032854Z-3613 status=ok 成功请求=40 MeanTTFT=15.40 s MeanTPOT=6.08 ms
+=== [11:36:08] G1 128k-c1 ===
+[1/1] 执行 prod-longctx-128k-c1 …
+    → run_id=prod-longctx-128k-c1-20261015T033609Z-018c status=ok 成功请求=10 MeanTTFT=25.35 s MeanTPOT=5.87 ms
+=== [11:49:32] G1 200k-c1 ===
+[1/1] 执行 prod-longctx-200k-c1 …
+    → run_id=prod-longctx-200k-c1-20261015T034932Z-9966 status=ok 成功请求=8 MeanTTFT=46.03 s MeanTPOT=5.71 ms
+=== [12:03:24] G1 DONE ===

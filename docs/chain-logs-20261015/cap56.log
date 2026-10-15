@@ -1,0 +1,66 @@
+=== [19:10:23] cap56: 等待 chunk 实验收口 ===
+=== [19:15:53] cap56: render + apply（decode mr 48→56） ===
+[render] 10 文件 -> /home/supperadm/llm-d/guides/pd-disaggregation/modelserver/gpu/sglang/metax/deepseek-v4-flash-0731-pernode-3p5d-cap56/_rendered/lws（10 处替换）
+[next]  kubectl apply -k /home/supperadm/llm-d/guides/pd-disaggregation/modelserver/gpu/sglang/metax/deepseek-v4-flash-0731-pernode-3p5d-cap56/_rendered/lws/
+serviceaccount/mx-sglang-pd-lws unchanged
+role.rbac.authorization.k8s.io/mx-sglang-pd-pod-reader unchanged
+rolebinding.rbac.authorization.k8s.io/mx-sglang-pd-pod-reader unchanged
+configmap/pd-launcher-dsv4-0731 unchanged
+service/decode-dsv4-0731-headless unchanged
+service/prefill-dsv4-0731-headless unchanged
+deployment.apps/deepseek-v4-0731-router unchanged
+leaderworkerset.leaderworkerset.x-k8s.io/decode-dsv4-0731 configured
+leaderworkerset.leaderworkerset.x-k8s.io/prefill-dsv4-0731 unchanged
+=== 等待收敛 ===
+[19:15:54] decode 5r/u prefill 3r/3u
+[19:16:39] decode 4r/1u prefill 3r/3u
+[19:17:25] decode 4r/1u prefill 3r/3u
+[19:18:10] decode 4r/1u prefill 3r/3u
+[19:18:55] decode 4r/1u prefill 3r/3u
+[19:19:40] decode 4r/1u prefill 3r/3u
+[19:20:26] decode 5r/1u prefill 3r/3u
+[19:21:11] decode 4r/2u prefill 3r/3u
+[19:21:56] decode 4r/2u prefill 3r/3u
+[19:22:41] decode 4r/2u prefill 3r/3u
+[19:23:27] decode 4r/2u prefill 3r/3u
+[19:24:12] decode 4r/2u prefill 3r/3u
+[19:24:57] decode 5r/2u prefill 3r/3u
+[19:25:42] decode 4r/3u prefill 3r/3u
+[19:26:28] decode 4r/3u prefill 3r/3u
+[19:27:13] decode 4r/3u prefill 3r/3u
+[19:27:58] decode 4r/3u prefill 3r/3u
+[19:28:43] decode 4r/3u prefill 3r/3u
+[19:29:29] decode 4r/4u prefill 3r/3u
+[19:30:14] decode 4r/4u prefill 3r/3u
+[19:30:59] decode 4r/4u prefill 3r/3u
+[19:31:44] decode 4r/4u prefill 3r/3u
+[19:32:30] decode 4r/4u prefill 3r/3u
+[19:33:15] decode 4r/4u prefill 3r/3u
+[19:34:00] decode 4r/5u prefill 3r/3u
+[19:34:45] decode 4r/5u prefill 3r/3u
+[19:35:31] decode 4r/5u prefill 3r/3u
+[19:36:16] decode 4r/5u prefill 3r/3u
+[19:37:01] decode 4r/5u prefill 3r/3u
+[19:37:46] decode 4r/5u prefill 3r/3u
+[19:38:32] decode 4r/5u prefill 3r/3u
+[19:39:17] decode 5r/5u prefill 3r/3u
+=== [19:39:17] 收敛 ✓，核 env（decode mr=56） ===
+max-running-requests 56
+chunked-prefill-size 16384
+cuda-graph-max-bs 64
+[19:41:21] probe1=200
+[19:41:26] probe2=200
+[19:41:29] probe3=200
+=== [19:41:29] cap56 c64@r3 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T114129Z-9be2 status=ok 成功请求=300 MeanTTFT=3.54 s MeanTPOT=10.10 ms
+=== [19:44:37] cap56 c128@r4 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T114437Z-59d1 status=ok 成功请求=300 MeanTTFT=1.72 s MeanTPOT=11.30 ms
+=== [19:47:03] cap56 c160@r5 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T114703Z-04f3 status=ok 成功请求=300 MeanTTFT=3.16 s MeanTPOT=12.45 ms
+=== [19:49:16] cap56 c192@r5 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T114916Z-b682 status=ok 成功请求=300 MeanTTFT=2.44 s MeanTPOT=12.29 ms
+=== [19:51:29] cap56 DONE ===

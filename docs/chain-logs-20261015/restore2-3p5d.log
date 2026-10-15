@@ -1,0 +1,52 @@
+=== [18:50:08] chunk 实验收口：恢复 3P5D 冻结档（16384） ===
+[render] 10 文件 -> /home/supperadm/llm-d/guides/pd-disaggregation/modelserver/gpu/sglang/metax/deepseek-v4-flash-0731-pernode-3p5d/_rendered/lws（10 处替换）
+[next]  kubectl apply -k /home/supperadm/llm-d/guides/pd-disaggregation/modelserver/gpu/sglang/metax/deepseek-v4-flash-0731-pernode-3p5d/_rendered/lws/
+serviceaccount/mx-sglang-pd-lws unchanged
+role.rbac.authorization.k8s.io/mx-sglang-pd-pod-reader unchanged
+rolebinding.rbac.authorization.k8s.io/mx-sglang-pd-pod-reader unchanged
+configmap/pd-launcher-dsv4-0731 unchanged
+service/decode-dsv4-0731-headless unchanged
+service/prefill-dsv4-0731-headless unchanged
+deployment.apps/deepseek-v4-0731-router unchanged
+leaderworkerset.leaderworkerset.x-k8s.io/decode-dsv4-0731 configured
+leaderworkerset.leaderworkerset.x-k8s.io/prefill-dsv4-0731 configured
+[18:50:10] decode 5r/u prefill 3r/u
+[18:50:55] decode 4r/1u prefill 2r/1u
+[18:51:40] decode 4r/1u prefill 2r/1u
+[18:52:25] decode 4r/1u prefill 2r/1u
+[18:53:11] decode 4r/1u prefill 2r/1u
+[18:53:56] decode 4r/1u prefill 2r/1u
+[18:54:41] decode 5r/1u prefill 2r/2u
+[18:55:26] decode 4r/2u prefill 2r/2u
+[18:56:12] decode 4r/2u prefill 2r/2u
+[18:56:57] decode 4r/2u prefill 2r/2u
+[18:57:42] decode 4r/2u prefill 2r/2u
+[18:58:27] decode 4r/2u prefill 2r/3u
+[18:59:13] decode 5r/2u prefill 2r/3u
+[18:59:58] decode 4r/3u prefill 2r/3u
+[19:00:43] decode 4r/3u prefill 2r/3u
+[19:01:28] decode 4r/3u prefill 2r/3u
+[19:02:14] decode 4r/3u prefill 3r/3u
+[19:02:59] decode 4r/3u prefill 3r/3u
+[19:03:44] decode 4r/4u prefill 3r/3u
+[19:04:29] decode 4r/4u prefill 3r/3u
+[19:05:15] decode 4r/4u prefill 3r/3u
+[19:06:00] decode 4r/4u prefill 3r/3u
+[19:06:45] decode 4r/4u prefill 3r/3u
+[19:07:30] decode 4r/4u prefill 3r/3u
+[19:08:16] decode 4r/5u prefill 3r/3u
+[19:09:01] decode 4r/5u prefill 3r/3u
+[19:09:46] decode 4r/5u prefill 3r/3u
+[19:10:31] decode 4r/5u prefill 3r/3u
+[19:11:17] decode 4r/5u prefill 3r/3u
+[19:12:02] decode 4r/5u prefill 3r/3u
+[19:12:47] decode 4r/5u prefill 3r/3u
+[19:13:32] decode 5r/5u prefill 3r/3u
+=== [19:13:32] 收敛 ✓，核 chunk env（应 16384） ===
+chunked-prefill-size 16384
+chunked-prefill-size 16384
+[19:15:37] probe1=200
+[19:15:41] probe2=200
+[19:15:41] probe3=200
+[19:15:42] probe4=200
+=== [19:15:42] RESTORE2 DONE ===

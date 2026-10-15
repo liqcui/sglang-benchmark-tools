@@ -1,0 +1,65 @@
+=== [17:07:08] cs8k: render + apply（chunk=8192 双侧） ===
+[render] 10 文件 -> /home/supperadm/llm-d/guides/pd-disaggregation/modelserver/gpu/sglang/metax/deepseek-v4-flash-0731-pernode-3p5d-cs8k/_rendered/lws（10 处替换）
+[next]  kubectl apply -k /home/supperadm/llm-d/guides/pd-disaggregation/modelserver/gpu/sglang/metax/deepseek-v4-flash-0731-pernode-3p5d-cs8k/_rendered/lws/
+serviceaccount/mx-sglang-pd-lws unchanged
+role.rbac.authorization.k8s.io/mx-sglang-pd-pod-reader unchanged
+rolebinding.rbac.authorization.k8s.io/mx-sglang-pd-pod-reader unchanged
+configmap/pd-launcher-dsv4-0731 unchanged
+service/decode-dsv4-0731-headless unchanged
+service/prefill-dsv4-0731-headless unchanged
+deployment.apps/deepseek-v4-0731-router unchanged
+leaderworkerset.leaderworkerset.x-k8s.io/decode-dsv4-0731 configured
+leaderworkerset.leaderworkerset.x-k8s.io/prefill-dsv4-0731 configured
+=== 等待收敛 ===
+[17:07:09] decode 5r/u prefill 3r/u
+[17:07:54] decode 4r/1u prefill 2r/1u
+[17:08:40] decode 4r/1u prefill 2r/1u
+[17:09:25] decode 4r/1u prefill 2r/1u
+[17:10:10] decode 4r/1u prefill 2r/1u
+[17:10:55] decode 4r/1u prefill 2r/1u
+[17:11:41] decode 4r/1u prefill 3r/1u
+[17:12:26] decode 5r/1u prefill 2r/2u
+[17:13:11] decode 4r/2u prefill 2r/2u
+[17:13:57] decode 4r/2u prefill 2r/2u
+[17:14:42] decode 4r/2u prefill 2r/2u
+[17:15:27] decode 4r/2u prefill 2r/2u
+[17:16:12] decode 4r/2u prefill 3r/2u
+[17:16:58] decode 4r/2u prefill 2r/3u
+[17:17:43] decode 4r/2u prefill 2r/3u
+[17:18:28] decode 5r/2u prefill 2r/3u
+[17:19:13] decode 4r/3u prefill 2r/3u
+[17:19:59] decode 4r/3u prefill 3r/3u
+[17:20:44] decode 4r/3u prefill 3r/3u
+[17:21:29] decode 4r/3u prefill 3r/3u
+[17:22:14] decode 4r/3u prefill 3r/3u
+[17:23:00] decode 5r/3u prefill 3r/3u
+[17:23:45] decode 4r/4u prefill 3r/3u
+[17:24:30] decode 4r/4u prefill 3r/3u
+[17:25:15] decode 4r/4u prefill 3r/3u
+[17:26:01] decode 4r/4u prefill 3r/3u
+[17:26:46] decode 4r/4u prefill 3r/3u
+[17:27:31] decode 4r/4u prefill 3r/3u
+[17:28:16] decode 4r/5u prefill 3r/3u
+[17:29:02] decode 4r/5u prefill 3r/3u
+[17:29:47] decode 4r/5u prefill 3r/3u
+[17:30:32] decode 4r/5u prefill 3r/3u
+[17:31:17] decode 4r/5u prefill 3r/3u
+[17:32:03] decode 4r/5u prefill 3r/3u
+[17:32:48] decode 5r/5u prefill 3r/3u
+=== [17:32:48] 收敛 ✓，核 chunk env（应 8192） ===
+chunked-prefill-size 8192
+chunked-prefill-size 8192
+=== settle 120 + 探测 ===
+[17:34:52] probe1=200
+[17:34:56] probe2=200
+[17:34:56] probe3=200
+=== [17:34:56] cs8k 65k-c1 ===
+[1/1] 执行 prod-longctx-65k-c1 …
+    → run_id=prod-longctx-65k-c1-20261015T093457Z-9f36 status=ok 成功请求=20 MeanTTFT=11.03 s MeanTPOT=5.45 ms
+=== [17:54:31] cs8k 65k-c8 ===
+[1/1] 执行 prod-longctx-65k-c8 …
+    → run_id=prod-longctx-65k-c8-20261015T095432Z-fc67 status=ok 成功请求=40 MeanTTFT=25.00 s MeanTPOT=5.86 ms
+=== [18:03:15] cs8k c128@r4 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T100315Z-d525 status=ok 成功请求=300 MeanTTFT=2.03 s MeanTPOT=12.27 ms
+=== [18:05:38] cs8k DONE ===

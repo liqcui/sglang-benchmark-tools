@@ -1,0 +1,7 @@
+=== [15:04:47] rep2: c64@r3 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T070447Z-62bf status=ok 成功请求=300 MeanTTFT=1.19 s MeanTPOT=9.97 ms
+=== [15:07:35] rep2: c160@r5 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T070735Z-c103 status=ok 成功请求=300 MeanTTFT=2.35 s MeanTPOT=12.32 ms
+=== [15:09:46] rep2 DONE ===

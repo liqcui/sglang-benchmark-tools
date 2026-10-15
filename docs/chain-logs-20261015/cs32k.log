@@ -1,0 +1,56 @@
+=== [18:11:29] cs32k: render + apply（chunk=32768 双侧） ===
+[render] 10 文件 -> /home/supperadm/llm-d/guides/pd-disaggregation/modelserver/gpu/sglang/metax/deepseek-v4-flash-0731-pernode-3p5d-cs32k/_rendered/lws（10 处替换）
+[next]  kubectl apply -k /home/supperadm/llm-d/guides/pd-disaggregation/modelserver/gpu/sglang/metax/deepseek-v4-flash-0731-pernode-3p5d-cs32k/_rendered/lws/
+serviceaccount/mx-sglang-pd-lws unchanged
+role.rbac.authorization.k8s.io/mx-sglang-pd-pod-reader unchanged
+rolebinding.rbac.authorization.k8s.io/mx-sglang-pd-pod-reader unchanged
+configmap/pd-launcher-dsv4-0731 unchanged
+service/decode-dsv4-0731-headless unchanged
+service/prefill-dsv4-0731-headless unchanged
+deployment.apps/deepseek-v4-0731-router unchanged
+leaderworkerset.leaderworkerset.x-k8s.io/decode-dsv4-0731 configured
+leaderworkerset.leaderworkerset.x-k8s.io/prefill-dsv4-0731 configured
+=== 等待收敛 ===
+[18:11:30] decode 5r/u prefill 3r/u
+[18:12:15] decode 4r/1u prefill 2r/1u
+[18:13:00] decode 4r/1u prefill 2r/1u
+[18:13:45] decode 4r/1u prefill 2r/1u
+[18:14:31] decode 4r/1u prefill 2r/1u
+[18:15:16] decode 4r/1u prefill 2r/1u
+[18:16:01] decode 5r/1u prefill 2r/2u
+[18:16:46] decode 4r/2u prefill 2r/2u
+[18:17:32] decode 4r/2u prefill 2r/2u
+[18:18:17] decode 4r/2u prefill 2r/2u
+[18:19:02] decode 4r/2u prefill 2r/2u
+[18:19:48] decode 4r/2u prefill 2r/3u
+[18:20:33] decode 4r/2u prefill 2r/3u
+[18:21:18] decode 4r/3u prefill 2r/3u
+[18:22:03] decode 4r/3u prefill 2r/3u
+[18:22:49] decode 4r/3u prefill 2r/3u
+[18:23:34] decode 4r/3u prefill 3r/3u
+[18:24:19] decode 4r/3u prefill 3r/3u
+[18:25:04] decode 4r/3u prefill 3r/3u
+[18:25:50] decode 4r/4u prefill 3r/3u
+[18:26:35] decode 4r/4u prefill 3r/3u
+[18:27:20] decode 4r/4u prefill 3r/3u
+[18:28:05] decode 4r/4u prefill 3r/3u
+[18:28:51] decode 4r/4u prefill 3r/3u
+[18:29:36] decode 5r/4u prefill 3r/3u
+[18:30:21] decode 4r/5u prefill 3r/3u
+[18:31:06] decode 4r/5u prefill 3r/3u
+[18:31:52] decode 4r/5u prefill 3r/3u
+[18:32:37] decode 4r/5u prefill 3r/3u
+[18:33:22] decode 4r/5u prefill 3r/3u
+[18:34:07] decode 4r/5u prefill 3r/3u
+[18:34:53] decode 4r/5u prefill 3r/3u
+[18:35:38] decode 5r/5u prefill 3r/3u
+=== [18:35:38] 收敛 ✓，核 chunk env（应 32768） ===
+chunked-prefill-size 32768
+chunked-prefill-size 32768
+=== settle 120 + 探测 ===
+[18:37:42] probe1=200
+[18:37:46] probe2=200
+[18:37:46] probe3=200
+=== [18:37:46] cs32k 65k-c1 ===
+  [forensics] 取证 完整: 节点 3 个, 签名[connection_reset] → /home/supperadm/sglang-benchmark-tools/data/runs/prod-longctx-65k-c1-20261015T103747Z-82b3/forensics
+    → run_id=prod-longctx-65k-c1-20261015T103747Z-82b3 status=partial 成功请求=2 MeanTTFT=0.00 ms MeanTPOT=10.60 ms

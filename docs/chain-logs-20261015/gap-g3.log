@@ -1,0 +1,54 @@
+=== [15:21:36] G3 阶段B: render + apply 3p5d-default（graph64 绕过版） ===
+[render] 10 文件 -> /home/supperadm/llm-d/guides/pd-disaggregation/modelserver/gpu/sglang/metax/deepseek-v4-flash-0731-pernode-3p5d-default/_rendered/lws（10 处替换）
+[next]  kubectl apply -k /home/supperadm/llm-d/guides/pd-disaggregation/modelserver/gpu/sglang/metax/deepseek-v4-flash-0731-pernode-3p5d-default/_rendered/lws/
+serviceaccount/mx-sglang-pd-lws unchanged
+role.rbac.authorization.k8s.io/mx-sglang-pd-pod-reader unchanged
+rolebinding.rbac.authorization.k8s.io/mx-sglang-pd-pod-reader unchanged
+configmap/pd-launcher-dsv4-0731 unchanged
+service/decode-dsv4-0731-headless unchanged
+service/prefill-dsv4-0731-headless unchanged
+deployment.apps/deepseek-v4-0731-router unchanged
+leaderworkerset.leaderworkerset.x-k8s.io/decode-dsv4-0731 configured
+leaderworkerset.leaderworkerset.x-k8s.io/prefill-dsv4-0731 configured
+=== 等待收敛（decode 5/5 + prefill 3/3，updated 同步） ===
+[15:21:37] decode 5r/u prefill 3r/u
+[15:22:37] decode 4r/1u prefill 2r/1u
+[15:23:37] decode 4r/1u prefill 2r/1u
+[15:24:38] decode 4r/1u prefill 2r/1u
+[15:25:38] decode 4r/1u prefill 3r/1u
+[15:26:38] decode 4r/2u prefill 2r/2u
+[15:27:39] decode 4r/2u prefill 2r/2u
+[15:28:39] decode 4r/2u prefill 2r/2u
+[15:29:39] decode 4r/2u prefill 3r/2u
+[15:30:39] decode 5r/2u prefill 2r/3u
+[15:31:40] decode 4r/3u prefill 2r/3u
+[15:32:40] decode 4r/3u prefill 2r/3u
+[15:33:40] decode 4r/3u prefill 3r/3u
+[15:34:40] decode 4r/3u prefill 3r/3u
+[15:35:41] decode 4r/4u prefill 3r/3u
+[15:36:41] decode 4r/4u prefill 3r/3u
+[15:37:41] decode 4r/4u prefill 3r/3u
+[15:38:41] decode 4r/4u prefill 3r/3u
+[15:39:42] decode 4r/5u prefill 3r/3u
+[15:40:42] decode 4r/5u prefill 3r/3u
+[15:41:42] decode 4r/5u prefill 3r/3u
+[15:42:42] decode 4r/5u prefill 3r/3u
+[15:43:43] decode 4r/5u prefill 3r/3u
+[15:44:43] decode 5r/5u prefill 3r/3u
+=== [15:44:43] 收敛 ✓（绕过可启动验证通过），记录默认档 Final Cmd ===
+[INFO] Final Cmd        : /opt/conda/bin/python3 -m sglang.launch_server --model-path /workspace/data/DeepSeek-V4-Flash-0731-W8A8 --tp-size 8 --trust-remote-code --context-length 400000 --max-running-requests 10 --port 8200 --host 0.0.0.0 --tool-call-parser deepseekv4 --reasoning-parser deepseek-v4 --served-model-name DeepSeek-V4-Flash --chunked-prefill-size 16384 --page-size 64 --kv-cache-dtype bfloat16 --schedule-conservativeness 0.6 --nnodes 1 --node-rank 0 --dist-init-addr 10.66.3.32:5000 --disaggregation-mode decode --disaggregation-ib-device mlx5_0 --disaggregation-bootstrap-port 8998 --dist-timeout 300 --mem-fraction-static 0.75 --enable-metrics --speculative-algorithm DSPARK --speculative-dspark-block-size 6 --cuda-graph-max-bs 64
+[INFO] Final Cmd        : /opt/conda/bin/python3 -m sglang.launch_server --model-path /workspace/data/DeepSeek-V4-Flash-0731-W8A8 --tp-size 8 --trust-remote-code --context-length 400000 --max-running-requests 10 --port 8000 --host 0.0.0.0 --tool-call-parser deepseekv4 --reasoning-parser deepseek-v4 --served-model-name DeepSeek-V4-Flash --chunked-prefill-size 16384 --page-size 64 --kv-cache-dtype bfloat16 --schedule-conservativeness 0.6 --nnodes 1 --node-rank 0 --dist-init-addr 10.66.3.31:5000 --disaggregation-mode prefill --disaggregation-ib-device mlx5_0 --disaggregation-bootstrap-port 8998 --dist-timeout 300 --mem-fraction-static 0.82 --enable-metrics
+=== settle 120s + 温探测 ===
+[15:46:47] probe1=200
+[15:46:48] probe2=200
+[15:46:52] probe3=200
+=== [15:46:52] G3 c64@r3（默认档，mr10 排队重） ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T074653Z-2355 status=ok 成功请求=300 MeanTTFT=7.33 s MeanTPOT=8.16 ms
+=== [15:50:10] G3 c128@r4 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T075010Z-8f09 status=ok 成功请求=300 MeanTTFT=12.61 s MeanTPOT=8.00 ms
+=== [15:52:55] G3 c160@r5 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T075256Z-43ef status=ok 成功请求=300 MeanTTFT=21.26 s MeanTPOT=7.93 ms
+=== [15:56:01] G3 DONE ===

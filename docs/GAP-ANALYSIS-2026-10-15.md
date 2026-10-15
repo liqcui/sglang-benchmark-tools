@@ -242,3 +242,16 @@ decode-only 滚动确认）；格 c64@r3/c128@r4/c160@r5/c192@r5；首跑带滚�
 排队/步时长微增（与 4+4 家族"cap48 全包络最优"结论呼应；graph-adjusted 48→56 亦改变捕获档）。
 - **对照复核**：回滚冻结档后即测 `refrozen-*` 同小时锚点两格，排除环境漂移贡献（结果见本节尾注）。
 - 附注：c192 首跑曾现 -5% 正向信号（2.44s），rep2 未复现（3.01s）→ 判噪声。
+
+### 附录 F：2026-10-15 20:24 服务器下线事件（记录）
+
+- **20:24:28-20:25:22**：各 GPU 节点 kubelet 集体停止上报（7/8 NotReady，仅 node32）——**计划性服务器
+  下线**的开端（用户 20:51 确认）。
+- 20:29+：驱逐启动（NoExecute 300s 到期）：decode-3 / prefill-1 / pd-bench-client Terminating；
+  kube-system 批量（coredns/calico-controller/registry 等）。
+- **数据面存活至最后**：引擎容器未被实际杀掉（kubelet 失联 → 删除卡 Terminating），keepalive 真实探测
+  持续 200（trace 至 20:54:50+，完整记录见 `docs/chain-logs-20261015/feel-warmup.log`）。
+- **影响**：E1 的 refrozen 锚点未跑（链 20:50 超时退出）→ cap56 结论按四格 rep2 直接判定
+  （结论不受影响：四格一致劣化）；参数扫描战役在 **B1 后暂停**（B2-B9 未执行，见 next-actions 优先级序）。
+- **保全**：本文档 + 报告 §8.8 + `docs/chain-logs-20261015/`（12 份链路日志归档）已推 GitHub；
+  MinIO `sglbench-backup-20261015-final` 全量对账。

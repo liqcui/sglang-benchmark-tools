@@ -1,0 +1,24 @@
+=== [14:44:43] final-unified 链启动：等待收敛（gate: decode 5ready+5updated / prefill 3ready+3updated）===
+[14:44:43] decode 4ready/5upd prefill 3ready/3upd
+[14:45:28] decode 4ready/5upd prefill 3ready/3upd
+[14:46:14] decode 4ready/5upd prefill 3ready/3upd
+[14:46:59] decode 4ready/5upd prefill 3ready/3upd
+[14:47:44] decode 5ready/5upd prefill 3ready/3upd
+=== [14:47:44] 已收敛，settle 120s + 温探测 ===
+[14:49:48] probe1=200
+[14:49:51] probe2=200
+[14:49:52] probe3=200
+[14:49:53] probe4=200
+=== [14:49:53] final-unified c64@r3 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T064953Z-2f3d status=ok 成功请求=300 MeanTTFT=3.11 s MeanTPOT=10.33 ms
+=== [14:52:57] final-unified c128@r4 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T065257Z-f24b status=ok 成功请求=300 MeanTTFT=1.61 s MeanTPOT=11.02 ms
+=== [14:55:24] final-unified c160@r5 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T065524Z-2a9e status=ok 成功请求=300 MeanTTFT=3.04 s MeanTPOT=11.94 ms
+=== [14:57:35] final-unified c192@r5 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T065735Z-1a39 status=ok 成功请求=300 MeanTTFT=2.61 s MeanTPOT=12.32 ms
+=== [14:59:47] final-unified DONE ===

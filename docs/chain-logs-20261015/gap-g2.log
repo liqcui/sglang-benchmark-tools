@@ -1,0 +1,7 @@
+=== [12:29:22] G2 c128@r4 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T042923Z-fa80 status=ok 成功请求=300 MeanTTFT=5.85 s MeanTPOT=11.12 ms
+=== [12:31:53] G2 c160@r5 ===
+[1/1] 执行 prod-steady-standard-r2 …
+    → run_id=prod-steady-standard-r2-20261015T043153Z-f30e status=ok 成功请求=300 MeanTTFT=3.18 s MeanTPOT=12.55 ms
+=== [12:34:07] G2 DONE ===
