@@ -99,3 +99,24 @@
 - **DSPARK 自身贡献（on vs off）A/B 基线**（4+4 时代，10-12）：单流 **TPOT 5.5 vs 16.6ms（3x）**、吞吐 **2.5x**、batch128 **5.9x** → 收益巨大必留
 - **未测**：3P5D/2P6D 下的 DSPARK on/off 对照（若需，可复用 `PD_ENABLE_DSPARK=0` 显式关；列为候选 G4）
 - accept rate（DSPARK 质量指标）：实测 0.78-0.83（近饱和）
+
+### 附录 A 辨析：DSPARK「PP=1」≠「不支持跨节点」
+
+**结论：DSPARK 限制的是 PP（流水线并行），不是跨节点本身**。跨节点扩展有三条路，DSPARK 兼容 TP/DP 跨节点，仅禁 PP：
+
+| 并行维度 | DSPARK 支持？ | 本体系实测证据 |
+|---|---|---|
+| **TP 跨节点**（tp8 分 4 节点，每节点 2 卡） | ✅ | **pp4full 官方形态全程实测**：decode 引擎运行期 server_args =
+  `nnodes=4, node_rank=1, tp_size=8, pp_size=1, dp_size=4, enable_dp_attention=True,
+  speculative_algorithm='DSPARK', speculative_dspark_block_size=6`（10-06/10-13 两代日志均实锤）；
+  c128 300/300、65K 等全部 DSPARK-on 数据即此形态产出 |
+| **DP 跨节点**（dp4 跨 4 节点） | ✅ | 同上（dp_size=4 + dp_attention=True + dp_lm_head=True） |
+| **PP 跨节点**（切层流水线） | ❌ **pp_size 必须=1** | DSPARK draft/verify 的 graph 捕获与跨 stage 通信不兼容；PP>1 时无合法配置 |
+
+**重要澄清（工程权衡，非限制）**：
+- DSPARK **允许**跨节点，但跨节点 tp8（每节点 2 卡）性能结构性劣势——KV/A2B 走网络：
+  **ITL 9.3ms / 单流 104 tok/s**（pp4full）vs 节点内 tp8（8 卡）**ITL 4.5ms / 210-226 tok/s（2.2x）**
+- 因此最优解（pernode）把每个引擎**收进单节点内**（tp8 占满 8 卡），DP 交由 router 层逐请求配对——
+  **是"性能最优"的选择，不是 DSPARK 的边界**
+- 模型硬约束另有一条：**tp ≤ 8**（attention 仅 8 个 output groups，`o_groups % tp == 0`；tp32 → 
+  `n_local_groups=0` 图捕获崩）——所以"单大引擎吞多节点"（tp32/tp64）任何形态都不可行
