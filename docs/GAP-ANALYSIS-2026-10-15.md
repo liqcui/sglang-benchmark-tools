@@ -146,5 +146,32 @@ f4 终止之因）。
   三对数据为准。label `g2-p96-*`。
 - **结论**：prefill cap 96 = **c128 档明确改善候选**（-20% TTFT，优于"稳定优先"阈值），c160 无损。
 
-### B3 G3 状态（官方默认参数对照）
-- `pernode-3p5d-default`（撤全部对齐 env）→ 已 apply（gen=19=observed）→ LWS 滚动中 → 进行时。
+### B3 G3 — 官方默认参数对照（进行中；已收获「缺陷三号」结案性发现）
+- **纯厂商默认 apply → decode 引擎 boot 崩溃循环 56min（15×重建）**：默认 `--max-running-requests 10`
+  + `--cuda-graph-max-bs 8`，graph8==min(8,mr10) → DSPARK `cuda_graph_config.decode.bs=None`
+  TypeError（dspark_worker_v2.py:496）→ sigquit boot 崩 —— **缺陷三号：纯默认参数在 pernode dp1 不可启动**。
+- **最小绕过已备**（仅补 `PD_CUDA_GRAPH_MAX_BS=64`（>mr 强制重建），其余全默认；镜像与基线同代际
+  retractfix/pristine 保持参数对照解耦）→ **阶段 B 续测中**：绕过可启动性验证 → 默认档 Final Cmd
+  实测值记录 → c64@r3/c128@r4/c160@r5（label `g3-default-*`，timeout 40m；默认 mr10 重度排队，
+  TTFT 预期显著劣化）。
+
+### 附录 C：统一镜像（dsv4-0731-unified）+ 3P5D 冻结参数终测（2026-10-15 下午）
+
+**统一镜像**：`harbor.isuanova.com/metax/sglang:0.5.14-maca.ai3.8.2.122-dsv4-0731-unified`
+（digest `sha256:6abc7cb9…f716d9`；= 官方基线 + ModelSlim-0731 + llm-launch 脚本层 + retractfix
+全层，构建期全层断言：PATCH-0731×4 + llm-launch×3 + BH-retract-fix×3 + BH-patch3）。
+**部署**：3P5D 冻结参数（cap64 对齐档）+ unified 双组，apply→滚动收敛 13 分钟零异常→探测 200。
+
+**终测（label `final-unified-*`，对照同机 10-14 夜 ab-3p5d 基线）**：
+
+| 格 | unified 暖稳态 | ab-3p5d 基线 | Δ TTFT / TPOT | 判定 |
+|---|---|---|---|---|
+| c64@r3 | **1.19s / 9.97ms**（rep2） | 1.44s / 10.31ms | -17% / -3% | ✅ 优 |
+| c128@r4 | **1.61s / 11.02ms** | 2.17s / 11.45ms | -26% / -4% | ✅ 优 |
+| c160@r5 | **2.35s / 12.32ms**（rep2） | 2.42s / 12.10ms | -3% / +2% | ≈ 持平 |
+| c192@r5 | 2.56s / 12.70ms（rep2；稳态段 61-300=+0.7%） | 2.19s / 12.17ms | +17% 全段 / +4% | ≈ 持平（尾段+7~14% 标记观察） |
+
+- **测量学新沉淀**：滚动后首跑 mean 被 JIT 冷窗口严重污染（c64 首跑 mean 3.11s——前 30 条
+  med 16.2s；c160/c192 首跑同款）；**判定用 rep2 暖值/分段稳态，弃冷段**（与 12:29 冷伪影对铁律同源）。
+- **结论**：统一镜像 + 冻结参数 = **暖稳态全面持平或优于基线**（TPOT 全格 ≤ 基线）→
+  **unified 可作两形态（explicit + 厂商脚本）唯一生产镜像**；上表 4 格为「最优架构（3P5D）」终版数据。
