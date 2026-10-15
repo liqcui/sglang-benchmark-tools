@@ -146,14 +146,26 @@ f4 终止之因）。
   三对数据为准。label `g2-p96-*`。
 - **结论**：prefill cap 96 = **c128 档明确改善候选**（-20% TTFT，优于"稳定优先"阈值），c160 无损。
 
-### B3 G3 — 官方默认参数对照（进行中；已收获「缺陷三号」结案性发现）
-- **纯厂商默认 apply → decode 引擎 boot 崩溃循环 56min（15×重建）**：默认 `--max-running-requests 10`
-  + `--cuda-graph-max-bs 8`，graph8==min(8,mr10) → DSPARK `cuda_graph_config.decode.bs=None`
-  TypeError（dspark_worker_v2.py:496）→ sigquit boot 崩 —— **缺陷三号：纯默认参数在 pernode dp1 不可启动**。
-- **最小绕过已备**（仅补 `PD_CUDA_GRAPH_MAX_BS=64`（>mr 强制重建），其余全默认；镜像与基线同代际
-  retractfix/pristine 保持参数对照解耦）→ **阶段 B 续测中**：绕过可启动性验证 → 默认档 Final Cmd
-  实测值记录 → c64@r3/c128@r4/c160@r5（label `g3-default-*`，timeout 40m；默认 mr10 重度排队，
-  TTFT 预期显著劣化）。
+### B3 G3 完成 ✅ — 官方默认参数对照（3P5D；label `g3-default-*`）
+
+- **纯默认 apply → decode boot 崩溃循环 56min**（**缺陷三号**：`--max-running-requests 10` +
+  `--cuda-graph-max-bs 8`，graph8==min(8,mr10) → DSPARK `cuda_graph_config.decode.bs=None`
+  TypeError，dspark_worker_v2.py:496）→ **最小绕过 = 仅补 `PD_CUDA_GRAPH_MAX_BS=64`**（>mr 强制
+  重建；其余全默认）→ **可启动验证 ✓**（15:44 收敛，零 bs=None）。
+- **默认档实测 Final Cmd**：decode = `mr10` · graph64(绕过) · mem-frac 0.75 · conservative 0.6 ·
+  DSPARK6；**prefill = `mr10`(!)** · mem-frac 0.82 · chunked 16384。对照冻结档：decode mr48 / prefill mr64。
+- 三格（全 ok 300/300，零崩；镜像与基线同代际 retractfix/pristine，参数对照解耦）：
+
+| 格 | 默认档（绕过版） | 冻结档（unified rep2） | Δ TTFT | Δ TPOT |
+|---|---|---|---|---|
+| c64@r3 | 7.33s / 8.16ms | 1.19s / 9.97ms | **+516%** | -18% |
+| c128@r4 | 12.61s / 8.00ms | 1.61s / 11.02ms | **+683%** | -27% |
+| c160@r5 | 21.26s / 7.93ms | 2.35s / 12.32ms | **+805%** | -36% |
+
+- **结论**：厂商默认档在 3P5D = ①boot 即崩（缺陷三号）；②最小绕过后可启动，但高并发 TTFT
+  7→21s（随负载线性暴涨）**完全不可生产**；③其唯一优势是 TPOT（-18~-36%，mr10 窄批的副产品）——
+  **对齐参数（mr48/mr64）正是 TTFT 1.2-2.4s 生产可用性的来源**（与 F2"对齐参数=稳定性来源"同源）。
+  Pareto 洞察：**mr 档位 = TTFT↔TPOT 的显式交换旋钮**（默认 mr10 极端偏 TPOT，对齐档偏 TTFT）。
 
 ### 附录 C：统一镜像（dsv4-0731-unified）+ 3P5D 冻结参数终测（2026-10-15 下午）
 
