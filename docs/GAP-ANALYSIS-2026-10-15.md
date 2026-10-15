@@ -79,3 +79,23 @@
 6. **E1/E2 固化** — 工程收敛
 
 > 全部数据（三拓扑网格/边界/体感）已在 DuckDB + MinIO `sglbench-backup-20261015-1120/`。
+
+---
+
+## 附录 A：DSPARK 投机解码启用情况（权威配置，2026-10-15 核验）
+
+**结论：除 nospark 对照变体外，所有测试形态默认开启 DSPARK**（block 6）；三拓扑同构同参 → 对比口径公平。
+
+| 形态 | DSPARK | 配置机制 | 备注 |
+|---|---|---|---|
+| **pernode-best**（4+4 最优解） | ✅ on | `PD_ENABLE_DSPARK=1` · `PD_DSPARK_BLOCK_SIZE=6` | 显式开关 |
+| **3P5D** | ✅ on | `PD_ENABLE_DSPARK=1` · block 6 | 同 pernode 家族 |
+| **2P6D** | ✅ on | `PD_ENABLE_DSPARK=1` · block 6 | 同 pernode 家族 |
+| **pp4full**（官方脚本） | ✅ on | 厂商 decode.sh 的 DSPARK 分支（`PD_DSPARK_BLOCK_SIZE=6`，`PD_EP_SIZE=1` 强制） | ep>1 时 draft verify graph 捕获必崩 |
+| **pp4full-nospark**（对照） | ❌ off | `PD_SPECULATIVE_ENABLE=0`（与 pp4full 唯一差异） | 用于隔离 DSPARK 贡献 |
+
+**数据口径影响**：
+- 本体系全部性能/边界/体感数据（三拓扑对照 §8.7、chat-feel §7、体感电池）**均在 DSPARK-on 下测得** —— 跨形态对比公平 ✓
+- **DSPARK 自身贡献（on vs off）A/B 基线**（4+4 时代，10-12）：单流 **TPOT 5.5 vs 16.6ms（3x）**、吞吐 **2.5x**、batch128 **5.9x** → 收益巨大必留
+- **未测**：3P5D/2P6D 下的 DSPARK on/off 对照（若需，可复用 `PD_ENABLE_DSPARK=0` 显式关；列为候选 G4）
+- accept rate（DSPARK 质量指标）：实测 0.78-0.83（近饱和）
