@@ -131,3 +131,30 @@ python3 -m sglbench run --scenario prod-chat-c16 --exec kubectl --env-file envs/
 
 - 原始输出：`/tmp/coldstart-experiment.log`（T1-T4）· `/tmp/perengine-hitch-experiment.log`（A/B 实验）
 - 工具：`tools/feel_warmup.sh`（v2）· `tools/feel_test.py`（体感电池）
+
+---
+
+## §7 双 4P+4D 体感对照：最优解 pernode vs 官方 pp4full（10-15 10:5x）
+
+**方法**：同一 `tools/feel_test.py` 电池、同一天、同空闲史；两组均为 4P+4D（pernode=8 引擎各 8 卡 /
+pp4full=跨节点单引擎×2）。
+
+| 用例 | pernode（最优解）TTFT / ITL中位 / 出字 | pp4full（官方）TTFT / ITL中位 / 出字 |
+|---|---|---|
+| A1 短问答 | **0.21s / 0ms / 81字/s** | 0.75s / 55ms / 14字/s |
+| A2 中篇 | **0.45s / 35ms / 106字/s** | 1.20s / 55ms / 32字/s |
+| A3 长篇 | **0.64s / 37ms / 128字/s** | 4.79s / 55ms / 66字/s |
+| B-多轮 R1 | **0.22s / 19ms / 128字/s** | 0.67s / 54ms / 72字/s |
+| B-多轮 R2 | **0.44s / 17ms / 150字/s** | 1.35s / 54ms / 71字/s |
+| B-多轮 R3 | **0.24s / 34ms / 100字/s** | 1.78s / 54ms / 61字/s |
+
+**判决（体感维度，pernode 全面碾压）**：
+- **TTFT**：pernode 0.21-0.64s（全部即时档）vs pp4full 0.67-4.79s（长篇 4.8s=明显等待）
+- **ITL 中位**：pernode 0-37ms（流畅）vs pp4full **54-55ms（恒定偏顿**——官方路径每步税）
+- **出字速率**：pernode 81-150 字/s vs pp4full 14-72 字/s
+- **多轮退化**：pernode 各轮稳定（0.22-0.44s 波动小）；**pp4full 逐轮恶化（0.67→1.35→1.78s）**
+  ——官方脚本路径 + 历史高负载/级联放大的体感侧印证
+- **结论**：**体感优先=pernode（或 3P5D，§8.7 吞吐更优）**；pp4full 官方模式体感不可作为生产 chat
+  前端（仅批处理/长 prefill 专项）。
+
+原始输出：`/tmp/feel-pernode44.json` · `/tmp/feel-pp4full.json`。
